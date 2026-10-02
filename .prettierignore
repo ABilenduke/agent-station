@@ -1,14 +1,9 @@
 node_modules/
-chatmodes/
-instructions/
-prompts/
 /references/
 !skills/bugfix/references/
 !skills/bugfix/references/**
 !skills/frontend-craft/references/
 !skills/frontend-craft/references/**
-toolkits/
-.schemas/
 .vscode/
 README*.md
 !tests/skills/bugfix/README.md
@@ -25,3 +20,4 @@ skills/frontend-craft/third-party/
 # devflow plugin build output.
 plugins/devflow/dist/
 plugins/devflow/dist-test/
+.superpowers/

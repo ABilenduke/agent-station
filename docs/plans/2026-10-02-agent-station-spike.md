@@ -40,18 +40,19 @@ instead of `${VAR}` env references.
 
 ## 4. Local-path marketplaces and refresh
 
-| | Claude Code | Codex |
-|---|---|---|
-| Add local path | `claude plugin marketplace add <dir>` → source `directory` | `codex plugin marketplace add <dir>` → `source_type = "local"` |
-| Install copies to cache | yes, `cache/<mkt>/<plugin>/<version>` | yes, `plugins/cache/<mkt>/<plugin>/<version>` |
-| Pick up edits, versioned plugin | no (`update` says already latest) | yes, re-running `codex plugin add` re-copies |
-| Pick up edits, **no `version`** | yes, `claude plugin update` "refreshed from source" (cache dir `unknown`) | yes, re-run `codex plugin add` (cache dir `local`) |
-| `marketplace upgrade/update` on local | `update` succeeds, does not refresh plugins | `upgrade` errors: Git marketplaces only |
+|                                       | Claude Code                                                               | Codex                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Add local path                        | `claude plugin marketplace add <dir>` → source `directory`                | `codex plugin marketplace add <dir>` → `source_type = "local"` |
+| Install copies to cache               | yes, `cache/<mkt>/<plugin>/<version>`                                     | yes, `plugins/cache/<mkt>/<plugin>/<version>`                  |
+| Pick up edits, versioned plugin       | no (`update` says already latest)                                         | yes, re-running `codex plugin add` re-copies                   |
+| Pick up edits, **no `version`**       | yes, `claude plugin update` "refreshed from source" (cache dir `unknown`) | yes, re-run `codex plugin add` (cache dir `local`)             |
+| `marketplace upgrade/update` on local | `update` succeeds, does not refresh plugins                               | `upgrade` errors: Git marketplaces only                        |
 
 A project whose `.claude/settings.json` declares `extraKnownMarketplaces.<same name>` with a GitHub
 source did not conflict: Claude kept using the user-level folder registration.
 
 **Consequences:**
+
 - agent-station plugins omit `version` (Git installs then track the commit).
 - `station install` registers the **local clone path** on this machine; projects declare the GitHub
   source for other machines and teammates.

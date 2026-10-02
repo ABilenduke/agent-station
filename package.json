@@ -1,51 +1,30 @@
 {
-  "name": "copilot-developer",
+  "name": "agent-station",
   "version": "1.0.0",
-  "description": "A curated list of developer friendly, production ready instructions, chatmodes, prompts and toolkits for mastering GitHub Copilot.",
+  "private": true,
+  "description": "One place for the skills, agents, hooks, MCP servers and CLIs used with Claude Code and Codex, published as a plugin marketplace.",
   "author": "Andrew Bilenduke (https://github.com/abilenduke)",
   "license": "MIT",
-  "homepage": "https://github.com/abilenduke/copilot-developer#readme",
+  "homepage": "https://github.com/abilenduke/agent-station#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/abilenduke/copilot-developer.git"
+    "url": "git+https://github.com/abilenduke/agent-station.git"
   },
   "bugs": {
-    "url": "https://github.com/abilenduke/copilot-developer/issues"
+    "url": "https://github.com/abilenduke/agent-station/issues"
   },
   "keywords": [
-    "github",
-    "github-copilot",
-    "copilot",
-    "copilot-prompts",
-    "prompt-engineering",
-    "instructions",
-    "agents",
-    "mcp",
-    "toolkits",
-    "ai-assistant",
-    "developer-resources",
-    "developer-tools",
-    "programming-tools",
-    "code-generation",
-    "awesome-list",
-    "curated-list",
-    "software-development",
-    "awesome"
+    "claude-code",
+    "codex",
+    "agent-skills",
+    "plugin-marketplace",
+    "mcp"
   ],
   "scripts": {
-    "readme-update": "node scripts/readme-update.js",
-    "toolkit-validate": "node scripts/toolkit-validate.js",
-    "toolkit-create": "node scripts/toolkit-create.js",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --check .",
-    "format:write": "prettier --write .",
-    "contributors:add": "all-contributors add",
-    "contributors:generate": "all-contributors generate",
-    "contributors:check": "all-contributors check"
-  },
-  "dependencies": {
-    "all-contributors-cli": "^6.26.1"
+    "format:write": "prettier --write ."
   },
   "devDependencies": {
     "eslint": "^8.57.0",

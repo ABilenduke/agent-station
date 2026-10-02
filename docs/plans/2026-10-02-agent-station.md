@@ -5,6 +5,7 @@
 The repo was built as a GitHub Copilot resource catalog. Copilot is no longer used; Claude Code and Codex are (maybe Gemini/Grok later). The goal is one place to manage skills, agents, hooks, MCP servers and CLIs, so that work is written once and **any project can be set up quickly with skills already built**, by any of those tools. Team use may come later.
 
 **Today's problems (from inventory):**
+
 - **Duplicated skills that have drifted.** research-memory and notebooklm each have two copies, in `~/.claude/skills` and `~/.agents/skills`, that differ only in "Claude" vs "Codex" wording, and neither copy is in a repo. `bugfix` exists twice in this repo with different content.
 - **Claude and Codex see different sets.** Claude sees one set through `~/.claude/skills` (copies plus `devflow` and `jev` symlinks). Codex sees another through `~/.agents/skills` symlinks. The worklog and jev hooks were hand-copied into `~/.codex/hooks.json` with absolute paths.
 - **ContentEngine leftovers.** `.claude/` holds 5 skills, 3 agents and a dead hook copied from ContentEngine.
@@ -14,6 +15,7 @@ The repo was built as a GitHub Copilot resource catalog. Copilot is no longer us
 **Key verified fact:** Codex 0.156 installs plugins directly from Claude-format git marketplaces. It has `claude-plugins-official` cached, reading `.claude-plugin/plugin.json`, and runs those plugins' `hooks/hooks.json` (trust entries for security-guidance and game-sounds). So **one plugin folder serves both tools**. Gemini can be added later with a `gemini-extension.json` beside `plugin.json`, as the Figma plugin already does.
 
 **Decisions made:**
+
 - The repo becomes a plugin marketplace.
 - Copilot content is archived under a tag and converted on demand.
 - The repo is renamed `agent-station`.
@@ -23,12 +25,14 @@ The repo was built as a GitHub Copilot resource catalog. Copilot is no longer us
 ## Design
 
 ### Success looks like
+
 - **New machine:** clone, then `station install`. Claude and Codex both have your plugins, `worklog` and `station` are on PATH, and global AGENTS.md is linked.
 - **New project:** `station init web`. This commits `.claude/settings.json` so Claude, and teammates, get prompted to install the right plugins. It also sets the Codex equivalent and creates an AGENTS.md/CLAUDE.md pair.
 - **Editing a skill:** you edit it once, and both tools pick it up after `station update`.
 - **Secrets and drift:** no secrets in the repo or in tool configs, and `station doctor` catches drift, broken links and plaintext keys.
 
 ### Repo layout
+
 ```
 agent-station/
 ├── .claude-plugin/marketplace.json  # one catalog, read by Claude + Codex
@@ -44,9 +48,11 @@ agent-station/
 ├── docs/           # features/, plans/
 └── .github/workflows/  # validate.yml, verify-no-crlf-line-endings.yml
 ```
+
 `marketplace.json` also lists **jev** with a GitHub source (`ABilenduke/jev-agent-tools`). It stays its own repo.
 
 ### Plugin conventions
+
 - **Layout.** Each plugin has `.claude-plugin/plugin.json` plus any of:
   - `skills/<name>/SKILL.md`: Agent Skills standard (`name` + `description`), with an optional `agents/openai.yaml` for Codex UI metadata.
   - `agents/*.md`
@@ -58,18 +64,22 @@ agent-station/
 - **Compiled CLIs commit `dist/`.** Marketplace installs are git clones and no build step runs. CI fails if `dist/` is stale.
 
 ### profiles.json (starting point; you edit freely)
+
 ```json
 {
-  "base":     ["devflow@agent-station", "context7@claude-plugins-official"],
-  "web":      ["@base", "frontend@agent-station", "playwright@claude-plugins-official"],
-  "laravel":  ["@web", "laravel-boost@claude-plugins-official"],
+  "base": ["devflow@agent-station", "context7@claude-plugins-official"],
+  "web": ["@base", "frontend@agent-station", "playwright@claude-plugins-official"],
+  "laravel": ["@web", "laravel-boost@claude-plugins-official"],
   "research": ["research@agent-station"]
 }
 ```
+
 context7, playwright and laravel-boost already exist as official plugins, so they are referenced rather than re-wrapped. Project-specific MCP commands, such as laravel-boost through `docker compose exec`, stay in that project's `.mcp.json`.
 
 ### station CLI
+
 Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempotent, back up before replacing anything, and merge JSON instead of overwriting it.
+
 - **`install`**
   - Registers the marketplace in Claude (`claude plugin marketplace add`) and Codex (`codex plugin marketplace add`), and installs the `base` profile at user scope in both.
   - Links `~/.local/bin/{station,worklog}`.
@@ -97,12 +107,14 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 ## Implementation
 
 **Phase 0: verification spike.** This is throwaway and nothing is committed. Results go in `docs/plans/2026-10-02-agent-station-spike.md`.
+
 1. Does Codex honour per-project plugin enablement, for example `[plugins."x@y"] enabled` in a trusted project's `.codex/config.toml`? If not, Codex installs profile plugins at user scope and `init` says so.
 2. What environment does Codex give plugin hooks (`CLAUDE_PLUGIN_ROOT`? a Codex marker?)? The answer drives devflow's `--harness auto`. superpowers' `hooks/session-start` shows the env-sniffing pattern.
 3. Does Codex load a plugin's `.mcp.json`, and does it expand `${VAR}`?
 4. Local-path marketplace in both tools: does `marketplace update` pick up local edits? Does a same-named local registration conflict with a project's GitHub-source `extraKnownMarketplaces`? The answer decides whether `install` registers the local clone path or `ABilenduke/agent-station`.
 
 **Phase 1: archive and clear.** Work on branch `feat/agent-station`, cut from the current committed HEAD.
+
 1. Save this plan as `docs/plans/2026-10-02-agent-station.md`.
 2. Tag `copilot-archive` at the pre-deletion HEAD and push the tag.
 3. Delete the Copilot material:
@@ -117,6 +129,7 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 5. Delete `tests/skills/{brd-plan,execute-plan,research-spike,review-plan}`, `docs/runbooks/skills-guide.md`, and the empty `.agents/` and `.codex/`.
 
 **Phase 2: plugins.**
+
 1. Write `.claude-plugin/marketplace.json` (devflow, research, frontend, and jev from GitHub).
 2. **devflow**
    - Move `skills/bugfix` into `plugins/devflow/skills/`.
@@ -133,6 +146,7 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 6. **jev prerequisite:** in the jev-agent-tools repo, commit `dist/`, because its hook runs `dist/hooks/skill-suggest.js`. That is a separate commit in that repo.
 
 **Phase 3: station CLI.**
+
 1. Implement the commands above with `node --test` tests. Each test uses a temporary HOME and stubbed `claude`/`codex` binaries on PATH.
 2. Root `package.json`:
    - name `agent-station`, `bin.station`
@@ -141,6 +155,7 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 4. Add `global/AGENTS.md` (starter content for you to fill in) and `secrets.env.example`.
 
 **Phase 4: rename and migrate this machine.** Each step backs up first. The outward-facing steps are confirmed with you at the time.
+
 1. Rename the repo:
    - `gh repo rename agent-station` (GitHub redirects the old URL)
    - `git remote set-url`
@@ -159,6 +174,7 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 4. Run `station install`, then pilot `station init laravel` in content-engine on a branch.
 
 **Phase 5: docs and CI.**
+
 1. Rewrite `README.md` with:
    - what agent-station is
    - quick starts for a new machine, a new project, and adding a skill
@@ -167,6 +183,7 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 2. Add `.github/workflows/validate.yml`: `station validate`, devflow tests, and the `dist/` freshness check. Keep the CRLF workflow.
 
 ## Verification
+
 - `npm test` passes (station and devflow). `node station/station.mjs validate` and `claude plugin validate .` pass.
 - **Claude:**
   - a new session's `/plugin` lists devflow, research, frontend and jev from agent-station

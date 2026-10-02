@@ -9,15 +9,5 @@ module.exports = {
     ecmaVersion: "latest",
     sourceType: "script",
   },
-  ignorePatterns: [
-    "node_modules/",
-    "chatmodes/",
-    "instructions/",
-    "prompts/",
-    "references/",
-    "toolkits/",
-    ".schemas/",
-    ".vscode/",
-    "README*.md",
-  ],
+  ignorePatterns: ["node_modules/", "/references/", ".vscode/", "README*.md"],
 };
