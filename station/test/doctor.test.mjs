@@ -109,3 +109,63 @@ test('doctor reports a missing devflow build but not file times, which a checkou
   utimesSync(join(repo, 'plugins/devflow/dist/cli.js'), new Date('2026-01-01'), new Date('2026-01-01'));
   assert.deepEqual(problems(doctor(catalog, deps)), []);
 });
+
+test('doctor finds secrets in headers, URLs and token flags of Claude Code MCP servers', () => {
+  const { home, deps, catalog } = healthy();
+  writeTree(home, {
+    '.claude.json': {
+      mcpServers: {
+        remote: {
+          type: 'http',
+          url: 'https://mcp.example.com/mcp?api_key=abc123',
+          headers: { Authorization: 'Bearer abc', 'X-Trace': 'on', 'X-Api-Key': '${KEY}' },
+        },
+        cli: { command: 'x', args: ['--access-token', 'abc', '--header', 'Authorization: Bearer abc', '--verbose'] },
+        fine: { command: 'x', args: ['--token-file', '/run/secret', '--header', 'Authorization: Bearer ${TOKEN}'] },
+      },
+    },
+  });
+  assert.deepEqual(problems(doctor(catalog, deps)), [
+    '~/.claude.json: MCP server "remote" has a secret in its URL; move it to ~/.config/agent-station/secrets.env',
+    '~/.claude.json: MCP server "remote" has Authorization in plain text; move it to ~/.config/agent-station/secrets.env',
+    '~/.claude.json: MCP server "cli" has a secret in its arguments; move it to ~/.config/agent-station/secrets.env',
+  ]);
+});
+
+test('doctor reads Claude Code config from CLAUDE_CONFIG_DIR when it is set', () => {
+  const { home, deps, catalog } = healthy();
+  writeTree(home, { 'alt/.claude.json': { mcpServers: { s: { command: 'x', env: { API_KEY: 'abc' } } } } });
+  deps.env.CLAUDE_CONFIG_DIR = join(home, 'alt');
+  assert.deepEqual(problems(doctor(catalog, deps)), [
+    '~/alt/.claude.json: MCP server "s" has API_KEY in plain text; move it to ~/.config/agent-station/secrets.env',
+  ]);
+});
+
+test('doctor finds secrets in Codex MCP args, bearer tokens, headers and quoted or dotted env keys', () => {
+  const { home, deps, catalog } = healthy();
+  writeTree(home, {
+    '.codex/config.toml': [
+      '[mcp_servers.a]',
+      'command = "x"',
+      'args = ["--api-key", "abc"]',
+      'bearer_token = "abc"',
+      'bearer_token_env_var = "GITHUB_TOKEN"',
+      'env_vars = ["OTHER_KEY"]',
+      'env.DOTTED_KEY = "abc"',
+      'http_headers = { Authorization = "Bearer abc", "X-Trace" = "on" }',
+      '',
+      '[mcp_servers.a.env]',
+      "QUOTED_TOKEN = 'abc'",
+      'REF_KEY = "${REF}"',
+      '',
+    ].join('\n'),
+  });
+  const move = 'move it to ~/.config/agent-station/secrets.env';
+  assert.deepEqual(problems(doctor(catalog, deps)), [
+    `~/.codex/config.toml: MCP server "a" has a secret in its arguments; ${move}`,
+    `~/.codex/config.toml: MCP server "a" has bearer_token in plain text; ${move}`,
+    `~/.codex/config.toml: MCP server "a" has DOTTED_KEY in plain text; ${move}`,
+    `~/.codex/config.toml: MCP server "a" has Authorization in plain text; ${move}`,
+    `~/.codex/config.toml: MCP server "a" has QUOTED_TOKEN in plain text; ${move}`,
+  ]);
+});

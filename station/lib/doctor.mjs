@@ -3,10 +3,17 @@ import { join } from 'node:path';
 import { marketplaceOf, pluginContents } from './catalog.mjs';
 import { available, claudeHome, codexHome, SECRETS, tilde, TOOLS } from './machine.mjs';
 
-const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD/i;
-const SECRET_FLAG = /^--?(api[-_]?key|token|secret|password)$/i;
-const SECRET_FLAG_VALUE = /^--?(api[-_]?key|token|secret|password)=./i;
+/** Names of settings, headers and query parameters that hold a secret; NAMES_A_SECRET only points at one. */
+const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|BEARER|CREDENTIAL/i;
+const NAMES_A_SECRET = /env_?vars?$|file$|path$/i;
+const SECRET_FLAG = /^--?[\w-]*(key|token|secret|password|bearer)$/i;
+const SECRET_FLAG_VALUE = /^--?[\w-]*(key|token|secret|password|bearer)=(.*)$/i;
+const SECRET_HEADER = /^\s*(authorization|[\w-]*(key|token|secret))\s*:\s*\S/i;
 const MOVE = `move it to ~/${SECRETS}`;
+
+/** A value written out in full, rather than empty or a ${VAR} reference. */
+const literal = (value) => typeof value === 'string' && value.trim() !== '' && !value.includes('${');
+const secretName = (name) => SECRET_NAME.test(name) && !NAMES_A_SECRET.test(name);
 
 function children(dir) {
   if (!existsSync(dir)) return [];
@@ -59,17 +66,35 @@ function duplicateSkills(catalog, deps, installed, finding) {
   }
 }
 
-function secretIn(server) {
-  const args = server.args ?? [];
-  const inArgs = args.some((a, i) => (SECRET_FLAG.test(a) && args[i + 1]) || SECRET_FLAG_VALUE.test(a));
-  const inEnv = Object.entries(server.env ?? {})
-    .filter(([k, v]) => SECRET_NAME.test(k) && typeof v === 'string' && v !== '' && !v.startsWith('${'))
-    .map(([k]) => k);
-  return { inArgs, inEnv };
+function argsHaveSecret(args) {
+  return args.some(
+    (arg, i) =>
+      (SECRET_FLAG.test(arg) && literal(args[i + 1]) && !args[i + 1].startsWith('-')) ||
+      literal(SECRET_FLAG_VALUE.exec(arg)?.[2]) ||
+      (SECRET_HEADER.test(arg) && literal(arg)),
+  );
+}
+
+function urlHasSecret(url) {
+  try {
+    return [...new URL(url).searchParams].some(([name, value]) => secretName(name) && literal(value));
+  } catch {
+    return false;
+  }
+}
+
+/** Reports what kind of secret a server holds, naming settings but never printing their values. */
+function report(finding, where, server, secrets) {
+  const prefix = `${where}: MCP server ${server}`;
+  if (secrets.args) finding(false, `${prefix} has a secret in its arguments; ${MOVE}`);
+  if (secrets.url) finding(false, `${prefix} has a secret in its URL; ${MOVE}`);
+  for (const name of secrets.names ?? []) finding(false, `${prefix} has ${name} in plain text; ${MOVE}`);
 }
 
 function claudeConfigSecrets(deps, finding) {
-  const path = join(deps.home, '.claude.json');
+  const path = deps.env.CLAUDE_CONFIG_DIR
+    ? join(deps.env.CLAUDE_CONFIG_DIR, '.claude.json')
+    : join(deps.home, '.claude.json');
   if (!existsSync(path)) return;
   const config = JSON.parse(readFileSync(path, 'utf8'));
   const scopes = [
@@ -78,33 +103,55 @@ function claudeConfigSecrets(deps, finding) {
   ];
   for (const [servers, scope] of scopes) {
     for (const [name, server] of Object.entries(servers)) {
-      const { inArgs, inEnv } = secretIn(server);
-      if (inArgs) finding(false, `~/.claude.json: MCP server "${name}"${scope} has a secret in its arguments; ${MOVE}`);
-      for (const key of inEnv)
-        finding(false, `~/.claude.json: MCP server "${name}"${scope} has ${key} in plain text; ${MOVE}`);
+      const named = { ...server.env, ...server.headers };
+      report(finding, tilde(deps, path), `"${name}"${scope}`, {
+        args: argsHaveSecret(server.args ?? []),
+        url: urlHasSecret(server.url),
+        names: Object.entries(named)
+          .filter(([key, value]) => secretName(key) && literal(value))
+          .map(([key]) => key),
+      });
     }
   }
+}
+
+const TOML_KEY = String.raw`(?:"[^"]*"|'[^']*'|[\w-]+)`;
+const unquote = (key) => key.trim().replace(/^(["'])(.*)\1$/, '$2');
+const quoted = (text) => [...text.matchAll(/"([^"]*)"|'([^']*)'/g)].map((m) => m[1] ?? m[2]);
+
+/** The `key = "value"` pairs in a line of TOML, including inline tables, keyed by the last dotted part. */
+function pairs(text) {
+  const pair = new RegExp(String.raw`(${TOML_KEY}(?:\s*\.\s*${TOML_KEY})*)\s*=\s*("[^"]*"|'[^']*')`, 'g');
+  const last = new RegExp(`${TOML_KEY}$`);
+  return [...text.matchAll(pair)].map((m) => [unquote(last.exec(m[1].trim())[0]), quoted(m[2])[0]]);
 }
 
 function codexConfigSecrets(deps, finding) {
   const path = join(codexHome(deps), 'config.toml');
   if (!existsSync(path)) return;
+  const where = tilde(deps, path);
+  const table = new RegExp(
+    `^\\s*\\[\\s*mcp_servers\\s*\\.\\s*(${TOML_KEY})\\s*(?:\\.\\s*([\\w-]+)\\s*)?\\]\\s*(?:#.*)?$`,
+  );
   let server = null;
-  let envTable = false;
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    const table = /^\s*\[mcp_servers\.(?:"([^"]+)"|([^.\]]+))(\.env)?\]\s*$/.exec(line);
-    if (table) {
-      [server, envTable] = [table[1] ?? table[2], Boolean(table[3])];
+  let sub = null;
+  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    const header = table.exec(line);
+    if (header) {
+      [server, sub] = [unquote(header[1]), header[2] ?? null];
       continue;
     }
-    if (/^\s*\[/.test(line)) [server, envTable] = [null, false];
-    if (!server) continue;
-    const pairs = envTable ? [line] : (/^\s*env\s*=\s*\{(.*)\}/.exec(line)?.[1].split(',') ?? []);
-    for (const pair of pairs) {
-      const kv = /^\s*"?([A-Za-z_][\w-]*)"?\s*=\s*"([^"]*)"/.exec(pair);
-      if (kv && SECRET_NAME.test(kv[1]) && kv[2] !== '' && !kv[2].startsWith('${')) {
-        finding(false, `${tilde(deps, path)}: MCP server "${server}" has ${kv[1]} in plain text; ${MOVE}`);
-      }
+    if (/^\s*\[/.test(line)) [server, sub] = [null, null];
+    if (!server || /^\s*#/.test(line)) continue;
+    if (!sub && /^\s*args\s*=/.test(line))
+      report(finding, where, `"${server}"`, { args: argsHaveSecret(quoted(line)) });
+    else if (!sub && /^\s*url\s*=/.test(line))
+      report(finding, where, `"${server}"`, { url: urlHasSecret(quoted(line)[0]) });
+    else {
+      const names = pairs(line)
+        .filter(([key, value]) => secretName(key) && literal(value))
+        .map(([key]) => key);
+      report(finding, where, `"${server}"`, { names });
     }
   }
 }
