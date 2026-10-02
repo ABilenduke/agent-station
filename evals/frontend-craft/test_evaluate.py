@@ -19,6 +19,10 @@ spec.loader.exec_module(evaluate)
 
 
 class ComparisonIntegrity(unittest.TestCase):
+    def test_candidate_is_the_repository_frontend_craft_skill(self):
+        candidate = evaluate.REPO / evaluate.CANDIDATE_PATH
+        self.assertTrue((candidate / "SKILL.md").is_file(), candidate)
+
     def test_catalog_resolves_aliases_and_catches_plugin_names(self):
         raw = json.dumps([{"content": [{"text": """### Skill roots
 - `r0` = `/tmp/fixture/.agents/skills`
@@ -132,7 +136,7 @@ class ComparisonIntegrity(unittest.TestCase):
             suite.mkdir()
             sources = {}
             for name in ["candidate", "anthropic", "vercel", "impeccable"]:
-                path = repo / "skills/frontend-craft" if name == "candidate" else base / name
+                path = repo / evaluate.CANDIDATE_PATH if name == "candidate" else base / name
                 path.mkdir(parents=True)
                 (path / "SKILL.md").write_text(f"---\nname: {name}\ndescription: Test.\n---\nGuidance.")
                 sources[name] = path

@@ -88,23 +88,23 @@ trees. The runner does not infer or verify a Git commit from an arbitrary suppli
 directory; retain the download/check-out provenance alongside the results.
 
 ```bash
-python3 tests/skills/frontend-craft/evaluate.py prepare \
+python3 evals/frontend-craft/evaluate.py prepare \
   --root /tmp/frontend-craft-pilot \
   --anthropic /tmp/frontend-craft-upstream/anthropic/skills/frontend-design \
   --vercel /tmp/frontend-craft-upstream/vercel-skill \
   --impeccable /tmp/frontend-craft-upstream/impeccable/.agents/skills/impeccable \
   --model gpt-6-astra --reasoning ultra --timeout 720
 
-python3 tests/skills/frontend-craft/evaluate.py run \
+python3 evals/frontend-craft/evaluate.py run \
   --root /tmp/frontend-craft-pilot --dry-run
 
-python3 tests/skills/frontend-craft/evaluate.py preflight \
+python3 evals/frontend-craft/evaluate.py preflight \
   --root /tmp/frontend-craft-pilot --probe
 
-python3 tests/skills/frontend-craft/evaluate.py run \
+python3 evals/frontend-craft/evaluate.py run \
   --root /tmp/frontend-craft-pilot --stage initial --workers 4
 
-python3 tests/skills/frontend-craft/evaluate.py render \
+python3 evals/frontend-craft/evaluate.py render \
   --root /tmp/frontend-craft-pilot --stage initial --verify-behavior
 ```
 
@@ -187,15 +187,15 @@ tooling, not a dependency shipped with the skill.
    Markdown file, then create the eight finalist repetitions:
 
 ```bash
-python3 tests/skills/frontend-craft/evaluate.py finalists \
+python3 evals/frontend-craft/evaluate.py finalists \
   --root /tmp/frontend-craft-pilot \
   --variants candidate anthropic-vercel \
   --rationale /tmp/frontend-craft-finalists.md
 
-python3 tests/skills/frontend-craft/evaluate.py run \
+python3 evals/frontend-craft/evaluate.py run \
   --root /tmp/frontend-craft-pilot --stage repeat --workers 4
 
-python3 tests/skills/frontend-craft/evaluate.py render \
+python3 evals/frontend-craft/evaluate.py render \
   --root /tmp/frontend-craft-pilot --stage repeat --verify-behavior
 ```
 
@@ -222,7 +222,7 @@ The `activation` entries in `cases.json` are separate from design scoring. Run
 each request in a fresh workspace with only the candidate discoverable:
 
 ```bash
-python3 tests/skills/frontend-craft/evaluate.py activation \
+python3 evals/frontend-craft/evaluate.py activation \
   --root /tmp/frontend-craft-pilot --timeout 180 --workers 4
 ```
 
@@ -245,7 +245,7 @@ skill entry point as review evidence. It does not turn a missing read event into
 an automatic pass; inspect the retained trace and changes.
 
 ```bash
-python3 -m unittest discover -s tests/skills/frontend-craft -p 'test_*.py' -v
+python3 -m unittest discover -s evals/frontend-craft -p 'test_*.py' -v
 ```
 
 These tests protect the runner's catalog parsing, private-rubric separation,
@@ -257,8 +257,8 @@ Run the Chromium regressions for actual validation, retry, alternate error wordi
 hidden errors, and stale progress states separately:
 
 ```bash
-python3 -B tests/skills/frontend-craft/browser_regressions.py -v
-python3 -B -m unittest discover -s tests/skills -p 'test_workflow_evaluators.py' -v
+python3 -B evals/frontend-craft/browser_regressions.py -v
+python3 -B -m unittest discover -s evals -p 'test_workflow_evaluators.py' -v
 ```
 
 The second command covers workflow evaluator path guards under optimized Python,

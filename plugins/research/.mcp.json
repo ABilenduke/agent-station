@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; . \"$HOME/.config/agent-station/secrets.env\" || exit 1; set +a; exec uvx mcp-obsidian"
+      ]
+    }
+  }
+}

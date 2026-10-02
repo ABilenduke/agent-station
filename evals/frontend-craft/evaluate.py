@@ -21,7 +21,8 @@ import uuid
 
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
+REPO = HERE.parents[1]
+CANDIDATE_PATH = "plugins/frontend/skills/frontend-craft"
 VARIANTS = ("native", "anthropic-vercel", "impeccable", "candidate")
 PINS = {
     "anthropic": "34040c9c568585f6929bedeaad110ad08f079624",
@@ -299,7 +300,7 @@ def prepare(args):
     if root.exists():
         raise ValueError("The trial root already exists; use a new root to preserve evidence.")
     cases = read_json(HERE / "cases.json")["cases"]
-    sources = {"candidate": REPO / "skills/frontend-craft", "anthropic": args.anthropic,
+    sources = {"candidate": REPO / CANDIDATE_PATH, "anthropic": args.anthropic,
                "vercel": args.vercel, "impeccable": args.impeccable}
     for name, source in sources.items():
         if source is None or not (source / "SKILL.md").is_file():

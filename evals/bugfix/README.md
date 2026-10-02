@@ -7,7 +7,7 @@ staged, unstaged, and untracked work. It carries its own deterministic Git, snap
 temporary-root helpers; this is test infrastructure, not a skill runtime dependency.
 
 ```bash
-python3 tests/skills/bugfix/evaluate.py prepare --root /tmp/bugfix-trial
+python3 evals/bugfix/evaluate.py prepare --root /tmp/bugfix-trial
 ```
 
 Give a fresh evaluator the skill and generated `tasks.json`, without author context, the driver,
@@ -15,9 +15,9 @@ starting snapshots, or expected findings. Ask it to perform the actual requests 
 and commands in `results.json` outside the repositories. Then inspect its artifacts independently:
 
 ```bash
-python3 tests/skills/bugfix/evaluate.py assess \
+python3 evals/bugfix/evaluate.py assess \
   --root /tmp/bugfix-trial \
-  --output tests/skills/bugfix/results/trial-artifacts.json
+  --output evals/bugfix/results/trial-artifacts.json
 ```
 
 | Case             | Meaningful outcome                                                                                 |

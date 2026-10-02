@@ -1,16 +1,14 @@
 node_modules
 /references/
-!skills/bugfix/references/
-!skills/bugfix/references/**
-!skills/frontend-craft/references/
-!skills/frontend-craft/references/**
 
-# Keep reusable skill tests and dated findings; generated run evidence stays local.
-tests/skills/**/runs/
-tests/skills/**/__pycache__/
-tests/skills/**/fixtures/**/dist/
-tests/skills/*/results/*
-!tests/skills/*/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
+# Keep reusable skill evals and dated findings; generated run evidence stays local.
+evals/**/runs/
+evals/**/__pycache__/
+evals/**/fixtures/**/dist/
+evals/*/results/*
+!evals/*/results/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
+# Local results from retired skills' evals (never committed).
+/tests/
 
 # Local execution journal, not maintained project documentation.
 docs/plans/2026-09-15-frontend-craft.execution.md
@@ -18,6 +16,6 @@ docs/plans/2026-09-15-frontend-craft.execution.md
 # macOS system files
 .DS_Store
 
-# devflow plugin build output.
+# devflow plugin build output that is not shipped.
 plugins/devflow/dist-test/
 plugins/devflow/.dist-check/
