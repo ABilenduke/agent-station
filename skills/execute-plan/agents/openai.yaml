@@ -3,4 +3,4 @@ interface:
   short_description: "Implement plans with verification and a resumable journal"
   default_prompt: "Use $execute-plan to implement or resume this plan, verify its acceptance criteria, and update its execution journal."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

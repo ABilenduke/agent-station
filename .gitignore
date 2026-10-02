@@ -1,5 +1,5 @@
 node_modules
-references
+/references/
 !skills/brd-plan/references/
 !skills/brd-plan/references/**
 !skills/execute-plan/references/
@@ -25,3 +25,7 @@ docs/plans/2026-09-15-frontend-craft.execution.md
 
 # macOS system files
 .DS_Store
+
+# devflow plugin build output.
+plugins/devflow/dist/
+plugins/devflow/dist-test/

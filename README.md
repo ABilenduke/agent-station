@@ -65,10 +65,17 @@ The directory structure should look like this:
 - `toolkits/` – Bundles of prompts, instructions, and agents for quick onboarding.
 - `scripts/` – Helper scripts for generating README overviews and validating toolkits.
 - `skills/` – Standalone Codex skills maintained here and installable globally.
+- `plugins/devflow/` – `worklog`, a time ledger for feature work, and the Claude Code and Codex hooks
+  that feed it. See its [README](plugins/devflow/README.md).
 
 Each top-level directory includes (or will include) focused README files with extra guidance and examples.
 
 ## Codex Skills
+
+> **Being replaced (2026-10-01).** BRD Plan, Execute Plan, Review Plan and Research Spike are
+> superseded by the `feature-brief`, `feature-research`, `feature-brd`, `feature-execute` and
+> `feature-review` skills, which live in the Cylinder Software repositories. Implicit invocation of
+> the four is switched off; they will be removed after the new workflow's pilot.
 
 [BRD Plan](skills/brd-plan/SKILL.md) turns planning and requirements requests into one business
 requirements document (BRD) with technical approach, acceptance criteria, and delivery steps. It

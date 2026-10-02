@@ -2,7 +2,7 @@ node_modules/
 chatmodes/
 instructions/
 prompts/
-references/
+/references/
 !skills/brd-plan/references/
 !skills/brd-plan/references/**
 !skills/execute-plan/references/
@@ -38,3 +38,6 @@ tests/skills/frontend-craft/runs/
 tests/skills/frontend-craft/fixtures/**/dist/
 # Preserve upstream legal notices verbatim.
 skills/frontend-craft/third-party/
+# devflow plugin build output.
+plugins/devflow/dist/
+plugins/devflow/dist-test/

@@ -3,4 +3,4 @@ interface:
   short_description: "Resolve technical uncertainty with evidence and experiments"
   default_prompt: "Use $research-spike to investigate this technical question, test consequential assumptions, and recommend the next action with supporting evidence."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
