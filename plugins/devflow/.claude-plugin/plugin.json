@@ -1,8 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "devflow",
-  "version": "0.1.0",
-  "description": "worklog time ledger hooks: record activity for the open feature step so active time can be measured without reading Claude Code or Codex transcripts.",
+  "description": "Development workflow: the bugfix and feedback skills, and the worklog time-ledger hooks that measure active time on feature steps for Claude Code and Codex.",
   "author": {
     "name": "Andrew Bilenduke",
     "email": "andrewbilenduke@gmail.com"

@@ -1,49 +1,32 @@
 # devflow
 
-`worklog`, a time ledger that measures how long each stage and step of feature work really took,
-and the Claude Code and Codex hooks that feed it. It is machine-level tooling: the feature workflow
-skills (`feature-brief` … `feature-review`) and the document contract live in the repositories that
-use them (for Cylinder, the parent's `.agents/skills/` and `docs/features/README.md`, synced into
-each child).
+Development workflow plugin for Claude Code and Codex:
+
+- **Skills:** `bugfix` (reproduce, find the cause, fix, verify) and `feedback` (work through PR review
+  comments with an append-only record).
+- **`worklog`:** a time ledger that measures how long each stage and step of feature work really took,
+  and the hooks that feed it. The feature workflow skills (`feature-brief` … `feature-review`) and the
+  document contract live in the repositories that use them (for Cylinder, the parent's
+  `.agents/skills/` and `docs/features/README.md`, synced into each child).
 
 - Time ledger contract: [contract/time-ledger.md](contract/time-ledger.md)
 
 `worklog` never reads Claude Code or Codex transcripts. It writes its own ledger, `time.jsonl`, into
 the feature folder, where it is committed with the other documents.
 
-## Build and link the CLI
+## Install
+
+devflow ships in the agent-station marketplace; `station install` adds it to Claude Code and Codex and
+links `~/.local/bin/worklog` (see the repository README). The same `hooks/hooks.json` runs in both
+tools: Codex provides `CLAUDE_PLUGIN_ROOT` to plugin hooks, and each event is recorded under the
+harness the session was bound with at `worklog start`/`join`.
+
+## Develop
 
 ```bash
 npm install
-npm run check   # typecheck, tests, build
-npm run link    # ~/.local/bin/worklog
-```
-
-## Install in Claude Code
-
-```bash
-ln -s "$(pwd -P)" ~/.claude/skills/devflow
-claude plugin details devflow@skills-dir   # the 9 worklog hooks
-```
-
-Hooks load from the next session.
-
-## Install in Codex
-
-Add one entry like this to each of `UserPromptSubmit`, `Stop`, `PreToolUse`, `PostToolUse`,
-`SubagentStop` and `SessionEnd` under `"hooks"` in `~/.codex/hooks.json`, keeping existing entries,
-then trust the new hooks when Codex asks:
-
-```json
-{
-  "hooks": [
-    {
-      "type": "command",
-      "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node /home/abilenduke/code/abilenduke/copilot-developer/plugins/devflow/dist/cli.js hook --harness codex; else cat >/dev/null; fi; exit 0",
-      "timeout": 5
-    }
-  ]
-}
+npm run check   # typecheck, tests, and a check that the committed dist/ matches src/
+npm run build   # after changing src/: dist/ is committed because plugin installs do not build
 ```
 
 ## How time is measured

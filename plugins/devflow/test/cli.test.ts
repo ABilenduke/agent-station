@@ -130,6 +130,15 @@ test('a second session can join an open step', async () => {
   assert.equal(ledger().at(-1)?.session, 'codex-thread-1');
 });
 
+test('a hook without --harness records the harness its session was bound with', async () => {
+  await run(['start', feature, 'S1'], claude);
+  await run(['join', feature, 'S1'], codex);
+  await run(['hook'], {}, JSON.stringify({ hook_event_name: 'Stop', session_id: 'codex-thread-1' }));
+  assert.equal(ledger().at(-1)?.harness, 'codex');
+  await run(['hook'], {}, JSON.stringify({ hook_event_name: 'Stop', session_id: 'claude-session-1' }));
+  assert.equal(ledger().at(-1)?.harness, 'claude-code');
+});
+
 test('starting an open step again, or finishing one that is not open, fails clearly', async () => {
   await run(['start', feature, 'S1'], claude);
   const again = await run(['start', feature, 'S1'], claude);

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]
@@ -94,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook --harness claude-code; else cat >/dev/null; fi; exit 0",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
             "timeout": 5
           }
         ]

@@ -26,7 +26,7 @@ const USAGE = `Usage: worklog <command>
   check <feature-dir>                                            validate time.jsonl and time.md
   status                                                         list open steps and bound sessions
   summary <dir>... [--json]                                      estimate calibration across features
-  hook --harness claude-code|codex                               record a hook event (used by hooks)
+  hook [--harness claude-code|codex]                             record a hook event (used by hooks)
 `;
 
 class UsageError extends Error {}

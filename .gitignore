@@ -19,5 +19,5 @@ docs/plans/2026-09-15-frontend-craft.execution.md
 .DS_Store
 
 # devflow plugin build output.
-plugins/devflow/dist/
 plugins/devflow/dist-test/
+plugins/devflow/.dist-check/
