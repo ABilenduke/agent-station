@@ -65,6 +65,7 @@ export function fakeTools({ codexHome, names, missing = [], fail = [], claude = 
     codex: { marketplaces: [...(codex.marketplaces ?? [])] },
   };
   const calls = [];
+  const cwds = {};
   const configPath = join(codexHome, 'config.toml');
   const readConfig = () => (existsSync(configPath) ? readFileSync(configPath, 'utf8') : '');
   const codexPlugins = () =>
@@ -77,8 +78,9 @@ export function fakeTools({ codexHome, names, missing = [], fail = [], claude = 
     writeFileSync(configPath, `${readConfig()}[plugins."${id.id}"]\nenabled = ${id.enabled}\n`);
   }
   const ok = (stdout = '') => ({ code: 0, stdout, stderr: '' });
-  const run = (cmd, args) => {
+  const run = (cmd, args, options = {}) => {
     calls.push([cmd, ...args].join(' '));
+    if (options.cwd) cwds[[cmd, ...args].join(' ')] = options.cwd;
     if (missing.includes(cmd)) return { code: 127, stdout: '', stderr: `${cmd}: not found` };
     if (fail.includes([cmd, ...args].join(' '))) return { code: 1, stdout: '', stderr: 'simulated failure' };
     const a = args.join(' ');
@@ -121,5 +123,5 @@ export function fakeTools({ codexHome, names, missing = [], fail = [], claude = 
     }
     return { code: 2, stdout: '', stderr: `fake ${cmd}: unsupported "${a}"` };
   };
-  return { run, calls, state, configPath };
+  return { run, calls, cwds, state, configPath };
 }

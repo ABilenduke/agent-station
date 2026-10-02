@@ -34,8 +34,8 @@ function stamp(deps) {
 }
 
 /** Runs a tool command, failing loudly on a non-zero exit. */
-function call(deps, tool, args) {
-  const result = deps.run(tool, args);
+function call(deps, tool, args, options = {}) {
+  const result = deps.run(tool, args, options);
   if (result.code !== 0) throw new Error(`${tool} ${args.join(' ')} failed: ${result.stderr.trim()}`);
   return result.stdout;
 }
@@ -50,6 +50,7 @@ export const TOOLS = {
         id: p.id,
         enabled: p.enabled,
         scope: p.scope,
+        projectPath: p.projectPath,
       })),
     addMarketplace: ['plugin', 'marketplace', 'add'],
     install: ['plugin', 'install'],
@@ -85,8 +86,8 @@ function act(deps, lines, dryRun, description, action) {
   lines.push(description);
 }
 
-function toolCommand(deps, lines, dryRun, tool, args) {
-  act(deps, lines, dryRun, `${tool} ${args.join(' ')}`, () => call(deps, tool, args));
+function toolCommand(deps, lines, dryRun, tool, args, options = {}) {
+  act(deps, lines, dryRun, `${tool} ${args.join(' ')}`, () => call(deps, tool, args, options));
 }
 
 /** Adds missing marketplaces and installs missing plugins in one tool, recording each id it installs. */
@@ -240,8 +241,9 @@ function codexForProject(catalog, deps, ids, lines) {
 }
 
 /**
- * Picks up changes to agent-station plugins. Claude Code loads a local marketplace in place; Codex
- * copies plugins, and re-adding one switches it on, so its previous switch is restored.
+ * Picks up committed changes to agent-station plugins. Claude Code caches each install by commit,
+ * so every install is updated in its own scope (project installs from their project). Codex copies
+ * plugins, and re-adding one switches it on, so its previous switch is restored.
  */
 export function update(catalog, deps) {
   return reporting((lines) => {
@@ -254,8 +256,10 @@ export function update(catalog, deps) {
     };
     if (ready('claude')) {
       toolCommand(deps, lines, false, 'claude', ['plugin', 'marketplace', 'update', catalog.name]);
-      const userWide = TOOLS.claude.plugins(deps).filter((p) => ours(p) && p.scope === 'user');
-      for (const p of userWide) toolCommand(deps, lines, false, 'claude', ['plugin', 'update', p.id]);
+      for (const p of TOOLS.claude.plugins(deps).filter(ours)) {
+        const cwd = p.scope === 'project' || p.scope === 'local' ? { cwd: p.projectPath } : {};
+        toolCommand(deps, lines, false, 'claude', ['plugin', 'update', p.id, '--scope', p.scope], cwd);
+      }
     }
     if (ready('codex')) {
       const plugins = TOOLS.codex.plugins(deps).filter(ours);

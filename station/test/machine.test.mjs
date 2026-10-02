@@ -124,7 +124,7 @@ test('update refreshes agent-station plugins in both tools and keeps Codex plugi
   update(catalog, deps);
   assert.deepEqual(writes(tools.calls), [
     'claude plugin marketplace update agent-station',
-    'claude plugin update devflow@agent-station',
+    'claude plugin update devflow@agent-station --scope user',
     'codex plugin add devflow@agent-station',
     'codex plugin add research@agent-station',
   ]);
@@ -134,19 +134,25 @@ test('update refreshes agent-station plugins in both tools and keeps Codex plugi
   assert.ok(repo);
 });
 
-test('update leaves Claude Code plugins installed for a single project to that project', () => {
+test('update refreshes Claude Code plugins in every scope, from the project for project installs', () => {
   const { tools, deps, catalog } = machine({
     claude: {
       marketplaces: ['agent-station'],
-      plugins: ['devflow@agent-station', { id: 'research@agent-station', scope: 'project' }],
+      plugins: [
+        'devflow@agent-station',
+        { id: 'research@agent-station', scope: 'project', projectPath: '/work/app' },
+        { id: 'context7@claude-plugins-official', scope: 'project', projectPath: '/work/app' },
+      ],
     },
     missing: ['codex'],
   });
   update(catalog, deps);
   assert.deepEqual(writes(tools.calls), [
     'claude plugin marketplace update agent-station',
-    'claude plugin update devflow@agent-station',
+    'claude plugin update devflow@agent-station --scope user',
+    'claude plugin update research@agent-station --scope project',
   ]);
+  assert.equal(tools.cwds['claude plugin update research@agent-station --scope project'], '/work/app');
 });
 
 test('ensureCodexPlugins installs missing plugins but leaves them off outside projects unless in the install profile', () => {
