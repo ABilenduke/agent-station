@@ -20,7 +20,16 @@
     "plugin-marketplace",
     "mcp"
   ],
+  "bin": {
+    "station": "station/station.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "test": "node --test station/test/*.test.mjs && npm --prefix plugins/devflow test",
+    "validate": "node station/station.mjs validate",
+    "check": "npm run lint && npm run format && npm test && npm run validate && npm --prefix plugins/devflow run check:dist",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --check .",

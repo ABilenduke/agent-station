@@ -10,4 +10,11 @@ module.exports = {
     sourceType: "script",
   },
   ignorePatterns: ["node_modules/", "/references/", ".vscode/", "README*.md"],
+  overrides: [
+    {
+      files: ["*.mjs"],
+      parserOptions: { sourceType: "module" },
+      rules: { "prettier/prettier": "off" },
+    },
+  ],
 };

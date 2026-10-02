@@ -1,0 +1,128 @@
+import { isDeepStrictEqual } from 'node:util';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve as resolvePath } from 'node:path';
+import { loadCatalog, pluginContents, readJson, resolve } from './catalog.mjs';
+import { doctor } from './doctor.mjs';
+import { ensureCodexPlugins, install, update } from './machine.mjs';
+import { ensureInstructions, mergeClaudeSettings, setCodexPlugins } from './project.mjs';
+import { validate } from './validate.mjs';
+
+const USAGE = `Usage: station <command>
+
+  install [--dry-run]                       set up this machine: marketplaces and the install profile
+                                            in Claude Code and Codex, CLIs, global AGENTS.md, secrets file
+  init <profile|plugin>... [--dir <path>]   set up a project to use those plugins in both tools
+       [--no-codex]                         (skip installing them in Codex for this user)
+  update                                    pick up changes to agent-station plugins in both tools
+  list                                      profiles and what each plugin provides
+  doctor                                    check this machine for drift, broken links and loose secrets
+  validate                                  check this repository (run in CI)
+`;
+
+class UsageError extends Error {}
+
+function parse(args) {
+  const positional = [];
+  const flags = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--dir') flags.dir = args[++i];
+    else if (args[i].startsWith('--')) flags[args[i].slice(2)] = true;
+    else positional.push(args[i]);
+  }
+  return { positional, flags };
+}
+
+function print(deps, lines) {
+  for (const line of lines) deps.stdout(`${line}\n`);
+}
+
+function writeIfChanged(path, text) {
+  if (existsSync(path) && readFileSync(path, 'utf8') === text) return false;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+  return true;
+}
+
+function init(catalog, args, deps) {
+  const { positional, flags } = parse(args);
+  if (positional.length === 0) throw new UsageError('init needs at least one profile or plugin');
+  const ids = resolve(catalog, positional);
+  const dir = resolvePath(deps.cwd, flags.dir ?? '.');
+  const written = [];
+
+  const settingsPath = join(dir, '.claude/settings.json');
+  const settings = existsSync(settingsPath) ? readJson(settingsPath) : {};
+  const merged = mergeClaudeSettings(settings, ids, catalog.marketplaces);
+  if (!existsSync(settingsPath) || !isDeepStrictEqual(settings, merged)) {
+    writeIfChanged(settingsPath, `${JSON.stringify(merged, null, 2)}\n`);
+    written.push('.claude/settings.json');
+  }
+  const codexPath = join(dir, '.codex/config.toml');
+  const codex = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
+  if (writeIfChanged(codexPath, setCodexPlugins(codex, ids, true))) written.push('.codex/config.toml');
+  written.push(...ensureInstructions(dir));
+
+  deps.stdout(`${dir}: ${ids.join(', ')}\n`);
+  print(deps, written.length > 0 ? written.map((f) => `wrote ${f}`) : ['already set up']);
+  if (!flags['no-codex']) print(deps, ensureCodexPlugins(catalog, deps, ids));
+  deps.stdout(
+    'Claude Code offers to install these plugins when the project is opened; Codex enables them here once the project is trusted.\n',
+  );
+  return 0;
+}
+
+function list(catalog, deps) {
+  deps.stdout(`Profiles (installed on every machine: ${catalog.install})\n`);
+  for (const name of Object.keys(catalog.profiles)) deps.stdout(`  ${name}: ${resolve(catalog, [name]).join(', ')}\n`);
+  deps.stdout(`Plugins in ${catalog.name}\n`);
+  const width = Math.max(...catalog.plugins.map((p) => p.name.length));
+  for (const plugin of catalog.plugins) {
+    const contents = plugin.dir ? pluginContents(plugin.dir) : {};
+    const parts = Object.entries(contents)
+      .filter(([, names]) => names.length > 0)
+      .map(([kind, names]) => `${kind}: ${names.join(', ')}`);
+    deps.stdout(`  ${plugin.name.padEnd(width)}  ${parts.join('; ')}\n`);
+  }
+  return 0;
+}
+
+const COMMANDS = {
+  install: (catalog, args, deps) => (
+    print(deps, install(catalog, deps, { dryRun: parse(args).flags['dry-run'] === true })),
+    0
+  ),
+  update: (catalog, args, deps) => (print(deps, update(catalog, deps)), 0),
+  init,
+  list: (catalog, args, deps) => list(catalog, deps),
+  doctor: (catalog, args, deps) => {
+    const findings = doctor(catalog, deps);
+    print(
+      deps,
+      findings.map((f) => `${f.ok ? '✔' : '✖'} ${f.message}`),
+    );
+    return findings.every((f) => f.ok) ? 0 : 1;
+  },
+  validate: (catalog, args, deps) => {
+    const problems = validate(deps.repo);
+    print(deps, problems.length > 0 ? problems : [`${catalog.name}: valid`]);
+    return problems.length > 0 ? 1 : 0;
+  },
+};
+
+export async function main(argv, deps) {
+  const [command, ...args] = argv;
+  if (command === undefined || command === 'help' || command === '--help') {
+    deps.stdout(USAGE);
+    return 0;
+  }
+  if (!(command in COMMANDS)) {
+    deps.stderr(`Unknown command "${command}".\n${USAGE}`);
+    return 1;
+  }
+  try {
+    return COMMANDS[command](loadCatalog(deps.repo), args, deps);
+  } catch (error) {
+    deps.stderr(error instanceof UsageError ? `${error.message}\n${USAGE}` : `${error.message}\n`);
+    return 1;
+  }
+}
