@@ -1,0 +1,26 @@
+{
+  "name": "devflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "worklog: a time ledger for feature work, fed by Claude Code and Codex hooks",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "rm -rf dist-test && tsc -p tsconfig.test.json && node --test dist-test/test/*.test.js",
+    "check": "npm run typecheck && npm test && npm run build",
+    "link": "chmod +x dist/cli.js && mkdir -p ~/.local/bin && ln -sfn \"$PWD/dist/cli.js\" ~/.local/bin/worklog && echo linked ~/.local/bin/worklog"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "prettier": "^3.2.5",
+    "typescript": "^7.0.2"
+  },
+  "bin": {
+    "worklog": "dist/cli.js"
+  }
+}
