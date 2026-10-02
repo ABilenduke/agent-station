@@ -124,3 +124,30 @@ test('init writes nothing when a project file cannot be edited safely', async ()
   assert.equal(existsSync(join(project, '.claude/settings.json')), false);
   assert.equal(existsSync(join(project, 'AGENTS.md')), false);
 });
+
+test('unknown options and stray arguments stop a command before it changes anything', async () => {
+  const { home, project, tools, run } = setup();
+  for (const argv of [
+    ['install', '--dryrun'],
+    ['install', '-n'],
+    ['install', 'now'],
+    ['update', '--all'],
+    ['init', 'web', '--dry-run'],
+    ['init', 'devflow', '--dir'],
+    ['init', 'devflow', '--dir', '--no-codex'],
+  ]) {
+    const result = await run(...argv);
+    assert.equal(result.code, 1, argv.join(' '));
+    assert.match(result.err, /Usage: station/, argv.join(' '));
+  }
+  assert.deepEqual(tools.calls.filter((c) => !c.endsWith('--json') && !c.endsWith('--version')), []);
+  assert.equal(existsSync(join(home, '.claude')), false);
+  assert.equal(existsSync(join(project, '.claude')), false);
+});
+
+test('init accepts --dir=<path>', async () => {
+  const { run } = setup();
+  const target = tempDir('station-eq-');
+  assert.equal((await run('init', 'devflow', `--dir=${target}`, '--no-codex')).code, 0);
+  assert.ok(existsSync(join(target, '.claude/settings.json')));
+});

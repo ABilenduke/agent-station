@@ -21,13 +21,32 @@ const USAGE = `Usage: station <command>
 
 class UsageError extends Error {}
 
-function parse(args) {
+/** What each command accepts: on/off flags, options that take a value, and whether it takes names. */
+const ARGS = {
+  install: { flags: ['dry-run'] },
+  update: {},
+  init: { flags: ['no-codex'], values: ['dir'], positional: true },
+  list: {},
+  doctor: {},
+  validate: {},
+};
+
+/** Parses a command's arguments, rejecting anything it does not accept so a typo never runs it. */
+function parse(command, args) {
+  const spec = ARGS[command];
   const positional = [];
   const flags = {};
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--dir') flags.dir = args[++i];
-    else if (args[i].startsWith('--')) flags[args[i].slice(2)] = true;
-    else positional.push(args[i]);
+    const [arg, inline] = args[i].startsWith('--') && args[i].includes('=') ? args[i].split(/=(.*)/s) : [args[i]];
+    const name = arg.slice(2);
+    if (arg.startsWith('--') && spec.values?.includes(name)) {
+      const value = inline ?? args[++i];
+      if (value === undefined || value === '' || value.startsWith('-')) throw new UsageError(`${arg} needs a value`);
+      flags[name] = value;
+    } else if (arg.startsWith('--') && spec.flags?.includes(name) && inline === undefined) flags[name] = true;
+    else if (arg.startsWith('-')) throw new UsageError(`${command} does not accept ${args[i]}`);
+    else if (spec.positional) positional.push(arg);
+    else throw new UsageError(`${command} takes no arguments, got "${arg}"`);
   }
   return { positional, flags };
 }
@@ -47,8 +66,7 @@ function writeIfChanged(path, text) {
  * Works out every project file first, so a file that cannot be edited safely or a plugin Codex
  * cannot install stops init before anything in the project changes.
  */
-function init(catalog, args, deps) {
-  const { positional, flags } = parse(args);
+function init(catalog, { positional, flags }, deps) {
   if (positional.length === 0) throw new UsageError('init needs at least one profile or plugin');
   const ids = resolve(catalog, positional);
   const dir = resolvePath(deps.cwd, flags.dir ?? '.');
@@ -94,10 +112,7 @@ function list(catalog, deps) {
 }
 
 const COMMANDS = {
-  install: (catalog, args, deps) => (
-    print(deps, install(catalog, deps, { dryRun: parse(args).flags['dry-run'] === true })),
-    0
-  ),
+  install: (catalog, { flags }, deps) => (print(deps, install(catalog, deps, { dryRun: flags['dry-run'] === true })), 0),
   update: (catalog, args, deps) => (print(deps, update(catalog, deps)), 0),
   init,
   list: (catalog, args, deps) => list(catalog, deps),
@@ -127,7 +142,7 @@ export async function main(argv, deps) {
     return 1;
   }
   try {
-    return COMMANDS[command](loadCatalog(deps.repo), args, deps);
+    return COMMANDS[command](loadCatalog(deps.repo), parse(command, args), deps);
   } catch (error) {
     deps.stderr(error instanceof UsageError ? `${error.message}\n${USAGE}` : `${error.message}\n`);
     return 1;
