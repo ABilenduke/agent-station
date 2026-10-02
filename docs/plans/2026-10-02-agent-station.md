@@ -202,3 +202,14 @@ Lives in `station/station.mjs` with `station/lib/*.mjs`. All commands are idempo
 - **GitHub:**
   - the `copilot-archive` tag exists on the remote
   - the old `ABilenduke/copilot-developer` URL redirects to `agent-station`
+
+## Amendments during execution
+
+- **jev stays hand-wired.** Its hook and CLI import `@typesafe-ai/sdk`, and a marketplace install
+  has no `node_modules`, so jev is not in the marketplace yet. Phase 4 keeps `~/.claude/skills/jev`,
+  `~/.agents/skills/jev-tools` and the jev entry in `~/.codex/hooks.json` until jev ships a bundled
+  build.
+- **Phase 4 order.** Move the checkout to `~/code/abilenduke/agent-station` before the first
+  `station install`, because both tools register the marketplace by path.
+- See `2026-10-02-agent-station-spike.md` for the verified tool behaviours that replaced the
+  `--harness auto` and `${VAR}` parts of this plan.
