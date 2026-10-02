@@ -171,3 +171,11 @@ test('ensureCodexPlugins installs missing plugins but leaves them off outside pr
   assert.match(config, /\[plugins\."devflow@agent-station"\]\nenabled = true/);
   assert.equal(lstatSync(join(codexHome, 'config.toml')).isFile(), true);
 });
+
+test('station backs up the Codex user config before switching plugins off in it', () => {
+  const { deps, catalog, codexHome } = machine({ codex: { marketplaces: ['agent-station', 'claude-plugins-official'] } });
+  ensureCodexPlugins(catalog, deps, ['research@agent-station']);
+  const saved = readFileSync(join(codexHome, 'config.toml.bak-20261002T100000'), 'utf8');
+  assert.match(saved, /\[plugins\."research@agent-station"\]\nenabled = true/);
+  assert.match(readFileSync(join(codexHome, 'config.toml'), 'utf8'), /\[plugins\."research@agent-station"\]\nenabled = false/);
+});

@@ -43,28 +43,35 @@ function writeIfChanged(path, text) {
   return true;
 }
 
+/**
+ * Works out every project file first, so a file that cannot be edited safely or a plugin Codex
+ * cannot install stops init before anything in the project changes.
+ */
 function init(catalog, args, deps) {
   const { positional, flags } = parse(args);
   if (positional.length === 0) throw new UsageError('init needs at least one profile or plugin');
   const ids = resolve(catalog, positional);
   const dir = resolvePath(deps.cwd, flags.dir ?? '.');
-  const written = [];
 
   const settingsPath = join(dir, '.claude/settings.json');
   const settings = existsSync(settingsPath) ? readJson(settingsPath) : {};
   const merged = mergeClaudeSettings(settings, ids, catalog.marketplaces);
+  const codexPath = join(dir, '.codex/config.toml');
+  const codex = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
+  const codexNext = setCodexPlugins(codex, ids, true);
+  const codexLines = flags['no-codex'] ? [] : ensureCodexPlugins(catalog, deps, ids);
+
+  const written = [];
   if (!existsSync(settingsPath) || !isDeepStrictEqual(settings, merged)) {
     writeIfChanged(settingsPath, `${JSON.stringify(merged, null, 2)}\n`);
     written.push('.claude/settings.json');
   }
-  const codexPath = join(dir, '.codex/config.toml');
-  const codex = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
-  if (writeIfChanged(codexPath, setCodexPlugins(codex, ids, true))) written.push('.codex/config.toml');
+  if (writeIfChanged(codexPath, codexNext)) written.push('.codex/config.toml');
   written.push(...ensureInstructions(dir));
 
   deps.stdout(`${dir}: ${ids.join(', ')}\n`);
   print(deps, written.length > 0 ? written.map((f) => `wrote ${f}`) : ['already set up']);
-  if (!flags['no-codex']) print(deps, ensureCodexPlugins(catalog, deps, ids));
+  print(deps, codexLines);
   deps.stdout(
     'Claude Code offers to install these plugins when the project is opened; Codex enables them here once the project is trusted.\n',
   );

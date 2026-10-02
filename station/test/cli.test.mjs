@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { main } from '../lib/cli.mjs';
 import { fakeTools, sampleRepo, tempDir, writeTree } from './helpers.mjs';
@@ -113,4 +113,14 @@ test('install --dry-run and unknown commands', async () => {
   assert.equal(unknown.code, 1);
   assert.match(unknown.err, /Usage: station/);
   assert.match((await run('help')).out, /Usage: station/);
+});
+
+test('init writes nothing when a project file cannot be edited safely', async () => {
+  const { project, run } = setup();
+  writeTree(project, { '.codex/config.toml': '[plugins]\n"devflow@agent-station".enabled = false\n' });
+  const result = await run('init', 'base', '--no-codex');
+  assert.equal(result.code, 1);
+  assert.match(result.err, /by hand/);
+  assert.equal(existsSync(join(project, '.claude/settings.json')), false);
+  assert.equal(existsSync(join(project, 'AGENTS.md')), false);
 });

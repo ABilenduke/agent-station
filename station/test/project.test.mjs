@@ -83,3 +83,25 @@ test('ensureInstructions adds only CLAUDE.md beside an existing AGENTS.md and ne
   assert.deepEqual(ensureInstructions(withClaude), []);
   assert.equal(readFileSync(join(withClaude, 'CLAUDE.md'), 'utf8'), '# Claude only\n');
 });
+
+test('setCodexPlugins edits a table however its header is spelled, without adding a duplicate', () => {
+  for (const header of ['[plugins."a@m"] # note', "[plugins.'a@m']", '[ plugins . "a@m" ]']) {
+    assert.equal(setCodexPlugins(`${header}\nenabled = false\n`, ['a@m'], true), `${header}\nenabled = true\n`, header);
+  }
+});
+
+test('setCodexPlugins keeps a comment on the enabled line, and the file line endings', () => {
+  assert.equal(setCodexPlugins('[plugins."a@m"]\nenabled = true # keep\n', ['a@m'], false), '[plugins."a@m"]\nenabled = false # keep\n');
+  assert.equal(
+    setCodexPlugins('model = "x"\r\n', ['a@m'], true),
+    'model = "x"\r\n\r\n[plugins."a@m"]\r\nenabled = true\r\n',
+  );
+});
+
+test('setCodexPlugins refuses forms it cannot edit safely instead of writing a duplicate key', () => {
+  for (const text of ['[plugins]\n"a@m".enabled = true\n', 'plugins = { "a@m" = { enabled = true } }\n']) {
+    assert.throws(() => setCodexPlugins(text, ['a@m'], false), /set enabled = false for a@m by hand/, text);
+  }
+  const subtable = '[plugins."a@m"]\nenabled = true\n\n[plugins."a@m".settings]\nx = 1\n# "a@m" is great\n';
+  assert.equal(setCodexPlugins(subtable, ['a@m'], false), subtable.replace('enabled = true', 'enabled = false'));
+});

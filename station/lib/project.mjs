@@ -18,15 +18,28 @@ export function mergeClaudeSettings(settings, ids, sources) {
   return out;
 }
 
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Sets `enabled` for each plugin's `[plugins."<id>"]` table in Codex TOML, adding tables that are
- * missing. Line-based so comments and the rest of the file are left exactly as they were.
+ * missing. Line-based so comments, line endings and the rest of the file are left as they were. A
+ * plugin written in another form (dotted keys, an inline table) is refused rather than duplicated,
+ * because Codex will not start with a duplicate key.
  */
 export function setCodexPlugins(text, ids, enabled) {
-  const lines = text === '' ? [] : text.replace(/\n$/, '').split('\n');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text === '' ? [] : text.replace(/\r?\n$/, '').split(/\r?\n/);
   const setting = `enabled = ${enabled}`;
   for (const id of ids) {
-    const header = lines.findIndex((l) => l.trim() === `[plugins."${id}"]`);
+    const name = `(?:"${escape(id)}"|'${escape(id)}')`;
+    const table = new RegExp(`^\\s*\\[\\s*plugins\\s*\\.\\s*${name}\\s*\\]\\s*(#.*)?$`);
+    const subtable = new RegExp(`^\\s*\\[\\s*plugins\\s*\\.\\s*${name}\\s*\\.`);
+    const mention = new RegExp(name);
+    const other = lines.find((l) => mention.test(l) && !table.test(l) && !subtable.test(l) && !/^\s*#/.test(l));
+    if (other !== undefined) {
+      throw new Error(`Cannot safely edit "${other.trim()}"; set ${setting} for ${id} by hand`);
+    }
+    const header = lines.findIndex((l) => table.test(l));
     if (header === -1) {
       if (lines.length > 0 && lines.at(-1).trim() !== '') lines.push('');
       lines.push(`[plugins."${id}"]`, setting);
@@ -34,11 +47,11 @@ export function setCodexPlugins(text, ids, enabled) {
     }
     let end = header + 1;
     while (end < lines.length && !lines[end].trim().startsWith('[')) end++;
-    const line = lines.slice(header + 1, end).findIndex((l) => /^\s*enabled\s*=/.test(l));
-    if (line === -1) lines.splice(header + 1, 0, setting);
-    else lines[header + 1 + line] = setting;
+    const at = lines.slice(header + 1, end).findIndex((l) => /^\s*enabled\s*=/.test(l)) + header + 1;
+    if (at === header) lines.splice(header + 1, 0, setting);
+    else lines[at] = lines[at].replace(/^(\s*)enabled\s*=\s*[^#]*?(\s*#.*)?$/, `$1${setting}$2`);
   }
-  return lines.length === 0 ? '' : `${lines.join('\n')}\n`;
+  return lines.length === 0 ? '' : `${lines.join(eol)}${eol}`;
 }
 
 const AGENTS_MD = `# Agent instructions

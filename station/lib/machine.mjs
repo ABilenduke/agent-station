@@ -192,10 +192,13 @@ export function install(catalog, deps, { dryRun = false } = {}) {
   return lines;
 }
 
-function setCodexUserPlugins(deps, ids, enabled) {
+function setCodexUserPlugins(deps, lines, ids, enabled) {
   const config = join(codexHome(deps), 'config.toml');
   const text = existsSync(config) ? readFileSync(config, 'utf8') : '';
-  writeFileSync(config, setCodexPlugins(text, ids, enabled));
+  const next = setCodexPlugins(text, ids, enabled);
+  if (next === text) return;
+  if (existsSync(config)) backup(deps, lines, config);
+  writeFileSync(config, next);
 }
 
 /**
@@ -209,7 +212,7 @@ export function ensureCodexPlugins(catalog, deps, ids) {
   const everywhere = new Set(resolve(catalog, [catalog.install]));
   const projectOnly = added.filter((id) => !everywhere.has(id));
   if (projectOnly.length > 0) {
-    setCodexUserPlugins(deps, projectOnly, false);
+    setCodexUserPlugins(deps, lines, projectOnly, false);
     lines.push(`codex: ${projectOnly.join(', ')} enabled only in projects that turn them on`);
   }
   return lines;
@@ -231,7 +234,7 @@ export function update(catalog, deps) {
     const plugins = TOOLS.codex.plugins(deps).filter(ours);
     for (const p of plugins) toolCommand(deps, lines, false, 'codex', ['plugin', 'add', p.id]);
     const off = plugins.filter((p) => !p.enabled).map((p) => p.id);
-    if (off.length > 0) setCodexUserPlugins(deps, off, false);
+    if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
   }
   return lines;
 }
