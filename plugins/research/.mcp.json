@@ -4,7 +4,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "set -a; . \"$HOME/.config/agent-station/secrets.env\" || exit 1; set +a; exec uvx mcp-obsidian"
+        ". \"$HOME/.config/agent-station/secrets.env\" || exit 1; export OBSIDIAN_API_KEY OBSIDIAN_HOST OBSIDIAN_PORT; exec uvx mcp-obsidian@0.2.3"
       ]
     }
   }
