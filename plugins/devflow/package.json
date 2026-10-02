@@ -16,11 +16,6 @@
     "check:dist": "rm -rf .dist-check && tsc -p tsconfig.json --outDir .dist-check && diff -r dist .dist-check; rc=$?; rm -rf .dist-check; exit $rc"
   },
   "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^26.6.2",
-    "prettier": "^3.2.5",
-    "typescript": "^7.0.2"
-  },
   "bin": {
     "worklog": "dist/cli.js"
   }
