@@ -111,7 +111,9 @@ function provide(catalog, deps, lines, dryRun, tool, ids) {
 }
 
 function backup(deps, lines, path) {
-  const saved = `${path}.bak-${stamp(deps)}`;
+  const base = `${path}.bak-${stamp(deps)}`;
+  let saved = base;
+  for (let n = 2; exists(saved); n++) saved = `${base}-${n}`;
   renameSync(path, saved);
   lines.push(`backed up ${tilde(deps, path)} → ${tilde(deps, saved)}`);
 }

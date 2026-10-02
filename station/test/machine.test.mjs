@@ -73,6 +73,18 @@ test('install backs up files it replaces and leaves its own earlier work alone',
   );
 });
 
+test('backups made in the same second never overwrite each other', () => {
+  const { home, deps, catalog } = machine();
+  const claudeMd = join(home, '.claude/CLAUDE.md');
+  mkdirSync(join(home, '.claude'), { recursive: true });
+  writeFileSync(claudeMd, '# first\n');
+  install(catalog, deps);
+  writeFileSync(claudeMd, '# second\n');
+  install(catalog, deps);
+  assert.equal(readFileSync(`${claudeMd}.bak-20261002T100000`, 'utf8'), '# first\n');
+  assert.equal(readFileSync(`${claudeMd}.bak-20261002T100000-2`, 'utf8'), '# second\n');
+});
+
 test('install --dry-run reports what it would do without changing anything', () => {
   const { home, tools, deps, catalog } = machine();
   const lines = install(catalog, deps, { dryRun: true });
