@@ -1,15 +1,7 @@
 node_modules
 /references/
-!skills/brd-plan/references/
-!skills/brd-plan/references/**
-!skills/execute-plan/references/
-!skills/execute-plan/references/**
-!skills/review-plan/references/
-!skills/review-plan/references/**
 !skills/bugfix/references/
 !skills/bugfix/references/**
-!skills/research-spike/references/
-!skills/research-spike/references/**
 !skills/frontend-craft/references/
 !skills/frontend-craft/references/**
 

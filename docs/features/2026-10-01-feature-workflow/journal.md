@@ -213,3 +213,23 @@ onto `main`. Vault D-010 and the MOC were corrected (design-system adopted; plai
 committed).
 
 **Status:** Complete.
+
+## Step 9: Retire the old Codex skills, commit and push
+
+On Andrew's instruction (2026-10-01, before the pilot), deleted `brd-plan`, `execute-plan`,
+`review-plan` and `research-spike` with their evaluation folders, `~/.agents/skills` links, README
+sections and ignore negations. Their history stays in Git.
+
+**Findings**: `tests/skills/bugfix/evaluate.py` imported its Git, snapshot and temporary-root helpers
+from `review-plan`'s evaluator, so those three functions now live in the bugfix driver itself. The
+shared `test_workflow_evaluators.py` keeps only the bugfix path guards.
+
+**Verification**
+
+| Iteration | Checks run                                                     | Result                   | Fix  |
+| --------- | -------------------------------------------------------------- | ------------------------ | ---- |
+| 1         | `python3 -m unittest tests/skills/test_workflow_evaluators.py` | 1 test passes            | None |
+| 1         | `tests/skills/bugfix/evaluate.py prepare` in a temp dir        | Exit 0, fixtures created | None |
+| 1         | `prettier --check README.md tests/skills`                      | Clean                    | None |
+
+**Status:** Complete. Pushes are recorded in the commit messages and the vault.

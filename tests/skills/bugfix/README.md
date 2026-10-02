@@ -3,8 +3,8 @@
 See [recorded results](results/2026-09-15.md) for actual outcomes and limitations.
 
 The [fixture driver](evaluate.py) creates five standard-library Python repositories with unrelated
-staged, unstaged, and untracked work. It reuses deterministic Git and snapshot helpers from the
-adjacent review-plan fixture driver; this is test infrastructure, not a skill runtime dependency.
+staged, unstaged, and untracked work. It carries its own deterministic Git, snapshot and
+temporary-root helpers; this is test infrastructure, not a skill runtime dependency.
 
 ```bash
 python3 tests/skills/bugfix/evaluate.py prepare --root /tmp/bugfix-trial

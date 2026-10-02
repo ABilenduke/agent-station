@@ -3,36 +3,20 @@ chatmodes/
 instructions/
 prompts/
 /references/
-!skills/brd-plan/references/
-!skills/brd-plan/references/**
-!skills/execute-plan/references/
-!skills/execute-plan/references/**
-!skills/review-plan/references/
-!skills/review-plan/references/**
 !skills/bugfix/references/
 !skills/bugfix/references/**
-!skills/research-spike/references/
-!skills/research-spike/references/**
 !skills/frontend-craft/references/
 !skills/frontend-craft/references/**
 toolkits/
 .schemas/
 .vscode/
 README*.md
-!tests/skills/brd-plan/README.md
-!tests/skills/execute-plan/README.md
-!tests/skills/review-plan/README.md
 !tests/skills/bugfix/README.md
-!tests/skills/research-spike/README.md
 !tests/skills/frontend-craft/README.md
 package-lock.json
 
 # Preserve captured evaluation responses verbatim.
-tests/skills/brd-plan/results/
-tests/skills/execute-plan/results/
-tests/skills/review-plan/results/
 tests/skills/bugfix/results/
-tests/skills/research-spike/results/
 tests/skills/frontend-craft/results/
 tests/skills/frontend-craft/runs/
 tests/skills/frontend-craft/fixtures/**/dist/

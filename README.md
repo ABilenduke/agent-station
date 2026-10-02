@@ -72,151 +72,36 @@ Each top-level directory includes (or will include) focused README files with ex
 
 ## Codex Skills
 
-> **Being replaced (2026-10-01).** BRD Plan, Execute Plan, Review Plan and Research Spike are
-> superseded by the `feature-brief`, `feature-research`, `feature-brd`, `feature-execute` and
-> `feature-review` skills, which live in the Cylinder Software repositories. Implicit invocation of
-> the four is switched off; they will be removed after the new workflow's pilot.
+Standalone skills maintained here and installable globally for Codex (`~/.agents/skills`):
+[Bugfix](skills/bugfix/SKILL.md) and [Frontend Craft](skills/frontend-craft/SKILL.md).
 
-[BRD Plan](skills/brd-plan/SKILL.md) turns planning and requirements requests into one business
-requirements document (BRD) with technical approach, acceptance criteria, and delivery steps. It
-inspects existing context, then asks small rounds of consequential follow-up questions. It works
-across repositories without a feature catalog, companion skill, or connector.
-
-[Execute Plan](skills/execute-plan/SKILL.md) implements an existing BRD, chat plan, ordinary Markdown
-plan, or usable legacy plan. It checks the resulting behavior and maintains a concise journal for
-review and resumption. Both skills are standalone; neither requires the other to be installed.
+The feature workflow skills that replaced BRD Plan, Execute Plan, Review Plan and Research Spike
+(removed 2026-10-01) live in the Cylinder Software repositories: `feature-brief`,
+`feature-research`, `feature-brd`, `feature-execute` and `feature-review`. Their time ledger,
+`worklog`, is in [plugins/devflow](plugins/devflow/README.md).
 
 ### Install globally
 
-Run this from the root of this checkout. The command refuses to replace an existing installation,
-including a dangling symlink:
+Run this from the root of this checkout, naming the skill. It refuses to replace an existing
+installation, including a dangling symlink:
 
 ```bash
-brd_source="$(pwd -P)/skills/brd-plan"
-brd_target="$HOME/.agents/skills/brd-plan"
-if [ ! -f "$brd_source/SKILL.md" ]; then
-  echo "Run this from the copilot-developer repository root."
-elif [ -e "$brd_target" ] || [ -L "$brd_target" ]; then
-  echo "An installation already exists at $brd_target; inspect it before changing it."
+skill=bugfix
+source="$(pwd -P)/skills/$skill"
+target="$HOME/.agents/skills/$skill"
+if [ ! -f "$source/SKILL.md" ]; then
+  echo "Run this from the copilot-developer repository root with an existing skill name."
+elif [ -e "$target" ] || [ -L "$target" ]; then
+  echo "An installation already exists at $target; inspect it before changing it."
 else
   mkdir -p "$HOME/.agents/skills"
-  ln -s "$brd_source" "$brd_target"
-fi
-```
-
-Install Execute Plan from the same checkout with its own collision check:
-
-```bash
-execute_source="$(pwd -P)/skills/execute-plan"
-execute_target="$HOME/.agents/skills/execute-plan"
-if [ ! -f "$execute_source/SKILL.md" ]; then
-  echo "Run this from the copilot-developer repository root."
-elif [ -e "$execute_target" ] || [ -L "$execute_target" ]; then
-  echo "An installation already exists at $execute_target; inspect it before changing it."
-else
-  mkdir -p "$HOME/.agents/skills"
-  ln -s "$execute_source" "$execute_target"
+  ln -s "$source" "$target"
 fi
 ```
 
 Codex supports [personal skills and symlinked skill directories](https://learn.chatgpt.com/docs/build-skills).
 The symlink uses this checkout as the source: updates take effect here, and moving or deleting the
 checkout breaks the link. To uninstall, remove only the symlink after checking its target.
-
-### Use BRD Plan
-
-```text
-Use $brd-plan to plan project search. Investigate the current implementation and clarify the scope.
-
-Use $brd-plan to revise docs/plans/2026-09-15-project-search.md: remove CSV export.
-```
-
-The skill is eligible for automatic selection on planning, BRD, and requirements-discovery requests;
-explicit `$brd-plan` invocation is the reliable way to select it. It complements Codex's native Plan
-Mode and does not change modes or replace `/plan`.
-
-In native Plan Mode, the plan stays in chat and follows the host's required plan format. When file
-writes are allowed, a planning request authorizes saving to your explicit destination or an existing
-repository convention, falling back to `docs/plans/YYYY-MM-DD-<topic>.md`. An explicit chat-only request
-takes precedence. Planning status is **Draft**, **Ready**, or **Discovery needed**; Ready describes a
-complete handoff, and approval is recorded only when actually given.
-
-Check `/skills` or type `$brd-plan` in a fresh Codex session from another repository. Restart Codex if
-the skill is not listed after installation. The original `.claude/skills/plan` and its execution
-workflow remain separate; the single BRD is not a drop-in input to that legacy executor.
-
-See the [evaluation protocol and results](tests/skills/brd-plan/README.md) for the regression scenarios
-and the limits of the checks performed.
-
-### Use Execute Plan
-
-```text
-Use $execute-plan to implement docs/plans/2026-09-15-project-search.md.
-
-Use $execute-plan to resume that plan. Reconcile its journal with the current code and scope.
-
-Use $execute-plan to implement the plan we agreed on in this conversation.
-```
-
-The BRD is a direct handoff: requirement IDs and delivery steps carry through into implementation and
-verification. No conversion into a feature catalog or split documents is needed. The executor inspects
-actual readiness; a Ready label alone is neither sufficient evidence nor permission to implement.
-
-Execution uses the current workspace and preserves unrelated staged and unstaged edits. By default,
-it leaves verified changes ready for review. Commits, pushes, PRs, ticket updates, and deployments
-follow explicit user instructions, including authorization already given. Checks scale to the change;
-failed prerequisites remain incomplete while independent authorized work continues.
-
-For a file plan, the journal is saved beside it as `<plan-stem>.execution.md`. Chat-only plans use the
-repository convention or `docs/plans/YYYY-MM-DD-<topic>.execution.md`. Resume requests reuse the journal
-and reconcile current plan, code, working tree, and evidence. Execution status is **In progress**,
-**Blocked**, **Verification incomplete**, or **Complete**, separate from BRD planning status. Required
-checks that fail or cannot run prevent a Complete claim.
-
-In native Plan Mode, the skill provides a read-only readiness assessment and execution proposal, with
-no source, journal, or Git changes. Implicit selection targets implementing or resuming an existing
-plan; ordinary coding and plan-review requests retain their workflow. Explicit `$execute-plan` selects
-the skill reliably. Check discovery from a fresh Codex session in another repository after installation.
-
-The original `.claude/skills/execute` and `.claude/agents/plan-executor.md` remain available separately.
-See [Execute Plan evaluation methods and evidence](tests/skills/execute-plan/README.md) for actual
-fixture outcomes and native-client coverage limits.
-
-### Use Review Plan
-
-[Review Plan](skills/review-plan/SKILL.md) checks delivered work against its current plan, including
-acceptance coverage, regressions, and claims in an execution journal. It accepts BRDs and ordinary
-plans without requiring either planning or execution skill to be installed.
-
-```text
-Use $review-plan to review the current implementation against docs/plans/project-search.md.
-Include staged, unstaged, and relevant new files. Report findings without fixing them.
-```
-
-The default output is a chat review with findings, requirement coverage, actual verification evidence,
-and a conclusion: **Changes needed**, **Verification incomplete**, or **No findings**. The skill
-preserves source files, plans, journals, and Git state; it saves a report only when requested and
-permitted by the active mode. A review does not authorize fixes or publishing PR comments.
-
-Install globally from this repository root:
-
-```bash
-review_source="$(pwd -P)/skills/review-plan"
-review_target="$HOME/.agents/skills/review-plan"
-if [ ! -f "$review_source/SKILL.md" ]; then
-  echo "Run this from the copilot-developer repository root."
-elif [ -e "$review_target" ] || [ -L "$review_target" ]; then
-  echo "An installation already exists at $review_target; inspect it before changing it."
-else
-  mkdir -p "$HOME/.agents/skills"
-  ln -s "$review_source" "$review_target"
-fi
-```
-
-The workflow is `$brd-plan` → `$execute-plan` → `$review-plan`, with each skill independently usable.
-Implicit selection targets reviewing implementation against an existing plan. Reviewing only a plan's
-design or doing a general code review without a plan retains its original workflow. See the
-[review evaluation evidence](tests/skills/review-plan/README.md).
 
 ### Use Bugfix
 
@@ -251,47 +136,6 @@ elif [ -e "$bugfix_target" ] || [ -L "$bugfix_target" ]; then
 else
   mkdir -p "$HOME/.agents/skills"
   ln -s "$bugfix_source" "$bugfix_target"
-fi
-```
-
-### Use Research Spike
-
-[Research Spike](skills/research-spike/SKILL.md) resolves a focused technical uncertainty before
-implementation. It investigates repository evidence, consults authoritative sources when needed, and
-runs small disposable experiments that can change the decision.
-
-```text
-Use $research-spike to investigate whether our current import parser supports quoted multiline fields.
-
-Use $research-spike to compare these integration options against our existing authentication constraints.
-
-Use $research-spike to resume docs/spikes/import-parser.md after the dependency upgrade.
-```
-
-The output records the question and constraints, traceable findings, recommendation and tradeoffs,
-remaining uncertainty, and next steps. Outcomes are **Answered**, **Conditional**, or **Unresolved**;
-successful prototypes do not imply production readiness. Supplied time/cost limits are honored, but
-invented estimates and mandatory interview rounds are avoided.
-
-When writes are allowed, the report follows an explicit destination or repository convention, falling
-back to `docs/spikes/YYYY-MM-DD-<topic>.md`. Chat-only requests and native Plan Mode keep the report in
-chat. Experiments preserve production source, dependency files, and Git state. No tickets, commits,
-PRs, deployments, or implementation changes happen automatically. Reports can inform `$brd-plan`
-without requiring it, another research tool, or a connector. The original Claude research workflow
-remains available separately. See [evaluation evidence](tests/skills/research-spike/README.md).
-
-Install globally from this repository root:
-
-```bash
-spike_source="$(pwd -P)/skills/research-spike"
-spike_target="$HOME/.agents/skills/research-spike"
-if [ ! -f "$spike_source/SKILL.md" ]; then
-  echo "Run this from the copilot-developer repository root."
-elif [ -e "$spike_target" ] || [ -L "$spike_target" ]; then
-  echo "An installation already exists at $spike_target; inspect it before changing it."
-else
-  mkdir -p "$HOME/.agents/skills"
-  ln -s "$spike_source" "$spike_target"
 fi
 ```
 

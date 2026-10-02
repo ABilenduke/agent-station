@@ -1,15 +1,32 @@
 #!/usr/bin/env python3
 """Prepare real bugfix probes; inspect behavior and preservation independently."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
-import runpy
 import subprocess
+import tempfile
 
-# Reuse deterministic Git/snapshot and temporary-root helpers.
-helpers = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'review-plan/evaluate.py'))
-git, snapshot = helpers['git'], helpers['snapshot']
-temporary_root = helpers['temporary_root']
+
+def temporary_root(path):
+    root = path.resolve()
+    if Path(tempfile.gettempdir()).resolve() not in root.parents:
+        raise ValueError('Use a dedicated child directory of the system temporary directory')
+    return root
+
+
+def git(root, *args):
+    return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
+
+
+def snapshot(root):
+    return {
+        'files': {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in root.rglob('*') if p.is_file() and '.git' not in p.parts},
+        'head': git(root, 'rev-parse', 'HEAD'),
+        'index': git(root, 'diff', '--cached', '--binary'),
+        'status': git(root, 'status', '--porcelain'),
+    }
 
 
 def prepare(root):
