@@ -23,8 +23,10 @@ harness the session was bound with at `worklog start`/`join`.
 
 ## Develop
 
+The TypeScript toolchain is installed at the repository root (`npm ci` there), so this folder has
+nothing to install when a tool copies the plugin.
+
 ```bash
-npm install
 npm run check   # typecheck, tests, and a check that the committed dist/ matches src/
 npm run build   # after changing src/: dist/ is committed because plugin installs do not build
 ```

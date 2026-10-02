@@ -60,11 +60,13 @@ This writes, and you commit:
 - `.claude/settings.json`: enables the plugins and declares their marketplaces, so Claude Code
   offers to install them for anyone who opens the project;
 - `.codex/config.toml`: switches the plugins on for this project once Codex trusts it;
-- `AGENTS.md` and a `CLAUDE.md` containing `@AGENTS.md`, if the project has neither, so all tools
-  share one set of project instructions.
+- `AGENTS.md` if it is missing, and a `CLAUDE.md` containing `@AGENTS.md`, so all tools share one
+  set of project instructions. A project that already has its own `CLAUDE.md` is left alone.
 
-Codex has no per-project install, so `init` also installs the plugins for your user and leaves the
-ones outside the `base` profile switched off everywhere except projects that enable them.
+Codex has no per-project install, so `init` also installs the plugins for your user. Plugins it
+installs for the first time, unless they are in the `base` profile, are switched off everywhere
+except projects that enable them. `init` works out every change first and writes nothing if any
+file cannot be edited safely.
 
 ## Add or change a skill
 
@@ -72,8 +74,9 @@ ones outside the `base` profile switched off everywhere except projects that ena
    `description` that says when to use it. Write "the agent", not "Claude" or "Codex". An optional
    `agents/openai.yaml` sets how Codex displays it.
 2. `npm run validate`, then commit.
-3. `station update`. Claude Code loads this checkout in place; Codex copies plugins, so `update`
-   re-copies them and keeps any you had switched off.
+3. `station update`. Both tools keep their own copy of each plugin: Claude Code per commit, so it
+   picks up committed changes, in every project that installed them; Codex re-copies the working
+   tree. Plugins you had switched off in Codex stay off.
 
 A new plugin is a folder with `.claude-plugin/plugin.json` (no `version`, so installs track commits),
 an entry in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json), and usually a
@@ -82,26 +85,33 @@ place in a profile.
 ### MCP servers and secrets
 
 Plugins declare MCP servers in `.mcp.json`. Secrets never go there: Codex does not expand `${VAR}`
-in plugin MCP config. Instead the server is started through `bash`, which reads the secrets file and
-hands over to the real command:
+in plugin MCP config. Instead the server is started through `bash`, which reads the secrets file,
+exports only the values that server needs, and hands over to a pinned version of the real command:
 
 ```json
-{ "command": "bash", "args": ["-c", "set -a; . \"$HOME/.config/agent-station/secrets.env\" || exit 1; set +a; exec uvx mcp-obsidian"] }
+{
+  "command": "bash",
+  "args": [
+    "-c",
+    ". \"$HOME/.config/agent-station/secrets.env\" || exit 1; export OBSIDIAN_API_KEY OBSIDIAN_HOST OBSIDIAN_PORT; exec uvx mcp-obsidian@0.2.3"
+  ]
+}
 ```
 
-`station validate` rejects `${...}` in `.mcp.json` and anything that looks like a credential in
-committed plugin files.
+`station validate` rejects `${...}` in `.mcp.json` and anything that looks like a credential in any
+committed file.
 
 ## How it fits together
 
 - **One catalog, two tools.** Codex reads Claude Code's `.claude-plugin/` format: plugin manifests,
   `skills/`, `hooks/hooks.json` (with `CLAUDE_PLUGIN_ROOT` set) and `.mcp.json`. Agents in
   `agents/` load in Claude Code only.
-- **This machine vs others.** `install` registers the local checkout, so edits are live after
-  `station update`. Projects declare the GitHub source, so other machines and teammates install from
-  GitHub. The two coexist under the same marketplace name.
-- **Builds are committed.** Plugin installs are plain clones and run no build, so compiled code such
-  as `plugins/devflow/dist/` is committed and CI checks it matches the source.
+- **This machine vs others.** `install` registers the local checkout, so committed changes reach
+  this machine with `station update` before they are pushed. Projects declare the GitHub source, so
+  other machines and teammates install from GitHub. The two coexist under the same marketplace name.
+- **Builds are committed.** Plugin installs copy the plugin folder and run no build, so compiled
+  code such as `plugins/devflow/dist/` is committed and CI checks it matches the source. Build
+  tooling lives at the repository root so plugin folders stay small.
 - **Gemini, later.** A plugin becomes a Gemini CLI extension by adding a `gemini-extension.json`
   beside its `plugin.json`; `install` already links `~/.gemini/GEMINI.md` when `~/.gemini` exists.
 
@@ -119,7 +129,7 @@ validate                                  check this repository (CI runs it)
 ## Develop
 
 ```bash
-npm ci && npm ci --prefix plugins/devflow
+npm ci
 npm run check    # lint, format, station and devflow tests, validate, devflow build is current
 ```
 

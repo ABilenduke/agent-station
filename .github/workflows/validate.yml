@@ -22,9 +22,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix plugins/devflow
+        run: npm ci
 
       - name: Lint, format, tests, marketplace validation and devflow build check
         run: npm run check
