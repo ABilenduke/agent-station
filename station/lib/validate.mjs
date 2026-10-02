@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { loadCatalog, readJson, resolve } from './catalog.mjs';
@@ -96,9 +97,27 @@ function checkMcp(catalog, repo, problems) {
   }
 }
 
+/** Files that would be committed: what git tracks in a checkout, otherwise everything. */
+function committedFiles(repo) {
+  try {
+    const listed = execFileSync('git', ['-C', repo, 'ls-files', '-z'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return listed
+      .split('\0')
+      .filter(Boolean)
+      .map((path) => join(repo, path))
+      .filter((path) => existsSync(path))
+      .sort();
+  } catch {
+    return files(repo);
+  }
+}
+
 function checkCredentials(repo, problems) {
-  const scanned = ['plugins', 'global', '.claude-plugin', 'profiles.json', 'secrets.env.example'];
-  for (const path of scanned.flatMap((p) => files(join(repo, p)))) {
+  for (const path of committedFiles(repo)) {
+    if (!statSync(path).isFile()) continue;
     const text = readFileSync(path, 'utf8');
     if (text.includes('\0')) continue;
     const hit = CREDENTIALS.find(([pattern]) => pattern.test(text));

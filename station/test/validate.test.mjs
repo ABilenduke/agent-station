@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { validate } from '../lib/validate.mjs';
@@ -55,9 +56,25 @@ test('MCP configs take secrets from the secrets file, not ${VAR} references Code
   ]);
 });
 
-test('committed plugin files must not contain credentials', () => {
+// Built at run time so this file does not itself look like it holds a token.
+const fakeToken = ['ghp', 'abcdefghijklmnopqrstuvwxyz0123456789'].join('_');
+
+test('no committed file may contain credentials, wherever it lives', () => {
   const repo = writeTree(sampleRepo(), {
-    'plugins/research/skills/notebooklm/notes.md': 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789\n',
+    'plugins/research/skills/notebooklm/notes.md': `token: ${fakeToken}\n`,
+    'docs/notes.md': `token: ${fakeToken}\n`,
   });
-  assert.deepEqual(validate(repo), ['plugins/research/skills/notebooklm/notes.md: looks like a GitHub token']);
+  assert.deepEqual(validate(repo), [
+    'docs/notes.md: looks like a GitHub token',
+    'plugins/research/skills/notebooklm/notes.md: looks like a GitHub token',
+  ]);
+});
+
+test('the credential scan covers only files git tracks when the repository is a git checkout', () => {
+  const repo = sampleRepo();
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  execFileSync('git', ['add', '.'], { cwd: repo });
+  writeTree(repo, { 'docs/untracked.md': `token: ${fakeToken}\n`, 'docs/tracked.md': `token: ${fakeToken}\n` });
+  execFileSync('git', ['add', 'docs/tracked.md'], { cwd: repo });
+  assert.deepEqual(validate(repo), ['docs/tracked.md: looks like a GitHub token']);
 });
