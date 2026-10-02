@@ -59,7 +59,7 @@ export function sampleRepo(root = tempDir('station-repo-')) {
  * `<codexHome>/config.toml` like the real tool, and `codex plugin list` reads it back.
  * `names` maps a marketplace source (path or owner/repo) to the marketplace name it declares.
  */
-export function fakeTools({ codexHome, names, missing = [], claude = {}, codex = {} }) {
+export function fakeTools({ codexHome, names, missing = [], fail = [], claude = {}, codex = {} }) {
   const state = {
     claude: { marketplaces: [...(claude.marketplaces ?? [])], plugins: [...(claude.plugins ?? [])] },
     codex: { marketplaces: [...(codex.marketplaces ?? [])] },
@@ -80,6 +80,7 @@ export function fakeTools({ codexHome, names, missing = [], claude = {}, codex =
   const run = (cmd, args) => {
     calls.push([cmd, ...args].join(' '));
     if (missing.includes(cmd)) return { code: 127, stdout: '', stderr: `${cmd}: not found` };
+    if (fail.includes([cmd, ...args].join(' '))) return { code: 1, stdout: '', stderr: 'simulated failure' };
     const a = args.join(' ');
     if (a === '--version') return ok(`${cmd} 1.0.0\n`);
     if (cmd === 'claude') {

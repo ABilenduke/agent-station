@@ -89,8 +89,8 @@ function toolCommand(deps, lines, dryRun, tool, args) {
   act(deps, lines, dryRun, `${tool} ${args.join(' ')}`, () => call(deps, tool, args));
 }
 
-/** Adds missing marketplaces and installs missing plugins in one tool; returns the ids it installed. */
-function provide(catalog, deps, lines, dryRun, tool, ids) {
+/** Adds missing marketplaces and installs missing plugins in one tool, recording each id it installs. */
+function provide(catalog, deps, lines, dryRun, tool, ids, added = []) {
   const t = TOOLS[tool];
   const markets = t.marketplaces(deps);
   for (const market of [catalog.name, ...ids.map(marketplaceOf)].filter((m, i, all) => all.indexOf(m) === i)) {
@@ -98,7 +98,6 @@ function provide(catalog, deps, lines, dryRun, tool, ids) {
     else toolCommand(deps, lines, dryRun, tool, [...t.addMarketplace, sourceOf(catalog, market)]);
   }
   const installed = new Set(t.plugins(deps).map((p) => p.id));
-  const added = [];
   for (const id of ids) {
     if (installed.has(id)) {
       lines.push(`ok: ${tool} has ${id}`);
@@ -208,12 +207,16 @@ function setCodexUserPlugins(deps, lines, ids, enabled) {
 export function ensureCodexPlugins(catalog, deps, ids) {
   const lines = [];
   if (!available(deps, 'codex')) return ['codex: not installed, skipped'];
-  const added = provide(catalog, deps, lines, false, 'codex', ids);
-  const everywhere = new Set(resolve(catalog, [catalog.install]));
-  const projectOnly = added.filter((id) => !everywhere.has(id));
-  if (projectOnly.length > 0) {
-    setCodexUserPlugins(deps, lines, projectOnly, false);
-    lines.push(`codex: ${projectOnly.join(', ')} enabled only in projects that turn them on`);
+  const added = [];
+  try {
+    provide(catalog, deps, lines, false, 'codex', ids, added);
+  } finally {
+    const everywhere = new Set(resolve(catalog, [catalog.install]));
+    const projectOnly = added.filter((id) => !everywhere.has(id));
+    if (projectOnly.length > 0) {
+      setCodexUserPlugins(deps, lines, projectOnly, false);
+      lines.push(`codex: ${projectOnly.join(', ')} enabled only in projects that turn them on`);
+    }
   }
   return lines;
 }
@@ -232,9 +235,12 @@ export function update(catalog, deps) {
   }
   if (available(deps, 'codex')) {
     const plugins = TOOLS.codex.plugins(deps).filter(ours);
-    for (const p of plugins) toolCommand(deps, lines, false, 'codex', ['plugin', 'add', p.id]);
     const off = plugins.filter((p) => !p.enabled).map((p) => p.id);
-    if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
+    try {
+      for (const p of plugins) toolCommand(deps, lines, false, 'codex', ['plugin', 'add', p.id]);
+    } finally {
+      if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
+    }
   }
   return lines;
 }

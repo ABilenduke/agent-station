@@ -179,3 +179,30 @@ test('station backs up the Codex user config before switching plugins off in it'
   assert.match(saved, /\[plugins\."research@agent-station"\]\nenabled = true/);
   assert.match(readFileSync(join(codexHome, 'config.toml'), 'utf8'), /\[plugins\."research@agent-station"\]\nenabled = false/);
 });
+
+test('a failed re-add during update still leaves switched-off Codex plugins off', () => {
+  const { deps, catalog, codexHome } = machine({
+    fail: ['codex plugin add frontend@agent-station'],
+    missing: ['claude'],
+    codex: {
+      marketplaces: ['agent-station'],
+      plugins: [
+        { id: 'research@agent-station', enabled: false },
+        { id: 'frontend@agent-station', enabled: false },
+      ],
+    },
+  });
+  assert.throws(() => update(catalog, deps), /frontend@agent-station failed/);
+  const config = readFileSync(join(codexHome, 'config.toml'), 'utf8');
+  assert.match(config, /\[plugins\."research@agent-station"\]\nenabled = false/);
+  assert.match(config, /\[plugins\."frontend@agent-station"\]\nenabled = false/);
+});
+
+test('a failed install during init leaves the plugins it did install off outside projects', () => {
+  const { deps, catalog, codexHome } = machine({
+    fail: ['codex plugin add context7@claude-plugins-official'],
+    codex: { marketplaces: ['agent-station', 'claude-plugins-official'] },
+  });
+  assert.throws(() => ensureCodexPlugins(catalog, deps, ['research@agent-station', 'context7@claude-plugins-official']), /failed/);
+  assert.match(readFileSync(join(codexHome, 'config.toml'), 'utf8'), /\[plugins\."research@agent-station"\]\nenabled = false/);
+});
