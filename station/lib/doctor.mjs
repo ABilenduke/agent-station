@@ -139,10 +139,14 @@ export function doctor(catalog, deps) {
       finding(true, `${tool}: not installed`);
       continue;
     }
-    if (TOOLS[tool].marketplaces(deps).includes(catalog.name))
-      finding(true, `${tool}: ${catalog.name} marketplace added`);
-    else finding(false, `${tool}: ${catalog.name} marketplace not added; run station install`);
-    installed[tool] = TOOLS[tool].plugins(deps).map((p) => p.id);
+    try {
+      if (TOOLS[tool].marketplaces(deps).includes(catalog.name)) {
+        finding(true, `${tool}: ${catalog.name} marketplace added`);
+      } else finding(false, `${tool}: ${catalog.name} marketplace not added; run station install`);
+      installed[tool] = TOOLS[tool].plugins(deps).map((p) => p.id);
+    } catch (error) {
+      finding(false, `${tool}: ${error.message}`);
+    }
   }
   brokenLinks(deps, finding);
   duplicateSkills(catalog, deps, installed, finding);

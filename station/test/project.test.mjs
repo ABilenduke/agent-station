@@ -91,7 +91,10 @@ test('setCodexPlugins edits a table however its header is spelled, without addin
 });
 
 test('setCodexPlugins keeps a comment on the enabled line, and the file line endings', () => {
-  assert.equal(setCodexPlugins('[plugins."a@m"]\nenabled = true # keep\n', ['a@m'], false), '[plugins."a@m"]\nenabled = false # keep\n');
+  assert.equal(
+    setCodexPlugins('[plugins."a@m"]\nenabled = true # keep\n', ['a@m'], false),
+    '[plugins."a@m"]\nenabled = false # keep\n',
+  );
   assert.equal(
     setCodexPlugins('model = "x"\r\n', ['a@m'], true),
     'model = "x"\r\n\r\n[plugins."a@m"]\r\nenabled = true\r\n',

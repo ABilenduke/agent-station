@@ -154,12 +154,27 @@ function write(deps, lines, dryRun, path, content) {
   });
 }
 
+/** Runs steps that report into `lines`, attaching what ran to any error so the caller can show it. */
+function reporting(body) {
+  const lines = [];
+  try {
+    body(lines);
+    return lines;
+  } catch (error) {
+    error.lines = lines;
+    throw error;
+  }
+}
+
 /**
  * Sets up this machine: both tools get the marketplaces and the install profile, the CLIs and the
  * global instructions are linked, and a private secrets file exists. Safe to run again.
  */
 export function install(catalog, deps, { dryRun = false } = {}) {
-  const lines = [];
+  return reporting((lines) => installSteps(catalog, deps, dryRun, lines));
+}
+
+function installSteps(catalog, deps, dryRun, lines) {
   const ids = resolve(catalog, [catalog.install]);
   for (const tool of ['claude', 'codex']) {
     if (!available(deps, tool)) lines.push(`${tool}: not installed, skipped`);
@@ -188,7 +203,6 @@ export function install(catalog, deps, { dryRun = false } = {}) {
   if (!existsSync(bashrc) || !readFileSync(bashrc, 'utf8').includes(SECRETS)) {
     lines.push(`secrets: add \`${SOURCE_SECRETS}\` to ~/.bashrc`);
   }
-  return lines;
 }
 
 function setCodexUserPlugins(deps, lines, ids, enabled) {
@@ -205,8 +219,13 @@ function setCodexUserPlugins(deps, lines, ids, enabled) {
  * disabled outside projects that enable them, unless the install profile enables them everywhere.
  */
 export function ensureCodexPlugins(catalog, deps, ids) {
-  const lines = [];
-  if (!available(deps, 'codex')) return ['codex: not installed, skipped'];
+  return reporting((lines) => {
+    if (available(deps, 'codex')) codexForProject(catalog, deps, ids, lines);
+    else lines.push('codex: not installed, skipped');
+  });
+}
+
+function codexForProject(catalog, deps, ids, lines) {
   const added = [];
   try {
     provide(catalog, deps, lines, false, 'codex', ids, added);
@@ -218,7 +237,6 @@ export function ensureCodexPlugins(catalog, deps, ids) {
       lines.push(`codex: ${projectOnly.join(', ')} enabled only in projects that turn them on`);
     }
   }
-  return lines;
 }
 
 /**
@@ -226,21 +244,27 @@ export function ensureCodexPlugins(catalog, deps, ids) {
  * copies plugins, and re-adding one switches it on, so its previous switch is restored.
  */
 export function update(catalog, deps) {
-  const lines = [];
-  const ours = (p) => marketplaceOf(p.id) === catalog.name;
-  if (available(deps, 'claude')) {
-    toolCommand(deps, lines, false, 'claude', ['plugin', 'marketplace', 'update', catalog.name]);
-    const userWide = TOOLS.claude.plugins(deps).filter((p) => ours(p) && p.scope === 'user');
-    for (const p of userWide) toolCommand(deps, lines, false, 'claude', ['plugin', 'update', p.id]);
-  }
-  if (available(deps, 'codex')) {
-    const plugins = TOOLS.codex.plugins(deps).filter(ours);
-    const off = plugins.filter((p) => !p.enabled).map((p) => p.id);
-    try {
-      for (const p of plugins) toolCommand(deps, lines, false, 'codex', ['plugin', 'add', p.id]);
-    } finally {
-      if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
+  return reporting((lines) => {
+    const ours = (p) => marketplaceOf(p.id) === catalog.name;
+    const ready = (tool) => {
+      if (!available(deps, tool)) return false;
+      if (TOOLS[tool].marketplaces(deps).includes(catalog.name)) return true;
+      lines.push(`${tool}: ${catalog.name} marketplace not added; run station install`);
+      return false;
+    };
+    if (ready('claude')) {
+      toolCommand(deps, lines, false, 'claude', ['plugin', 'marketplace', 'update', catalog.name]);
+      const userWide = TOOLS.claude.plugins(deps).filter((p) => ours(p) && p.scope === 'user');
+      for (const p of userWide) toolCommand(deps, lines, false, 'claude', ['plugin', 'update', p.id]);
     }
-  }
-  return lines;
+    if (ready('codex')) {
+      const plugins = TOOLS.codex.plugins(deps).filter(ours);
+      const off = plugins.filter((p) => !p.enabled).map((p) => p.id);
+      try {
+        for (const p of plugins) toolCommand(deps, lines, false, 'codex', ['plugin', 'add', p.id]);
+      } finally {
+        if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
+      }
+    }
+  });
 }

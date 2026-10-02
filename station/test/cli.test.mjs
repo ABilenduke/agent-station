@@ -140,7 +140,10 @@ test('unknown options and stray arguments stop a command before it changes anyth
     assert.equal(result.code, 1, argv.join(' '));
     assert.match(result.err, /Usage: station/, argv.join(' '));
   }
-  assert.deepEqual(tools.calls.filter((c) => !c.endsWith('--json') && !c.endsWith('--version')), []);
+  assert.deepEqual(
+    tools.calls.filter((c) => !c.endsWith('--json') && !c.endsWith('--version')),
+    [],
+  );
   assert.equal(existsSync(join(home, '.claude')), false);
   assert.equal(existsSync(join(project, '.claude')), false);
 });
@@ -150,4 +153,33 @@ test('init accepts --dir=<path>', async () => {
   const target = tempDir('station-eq-');
   assert.equal((await run('init', 'devflow', `--dir=${target}`, '--no-codex')).code, 0);
   assert.ok(existsSync(join(target, '.claude/settings.json')));
+});
+
+test('a failure partway through install still reports the steps that ran', async () => {
+  const { run } = setup({ fail: ['codex plugin add devflow@agent-station'] });
+  const result = await run('install');
+  assert.equal(result.code, 1);
+  assert.match(result.out, /claude plugin install devflow@agent-station/);
+  assert.match(result.err, /codex plugin add devflow@agent-station failed/);
+});
+
+test('doctor reports a tool it cannot query and carries on with the other checks', async () => {
+  const { run } = setup({
+    fail: ['codex plugin marketplace list --json'],
+    claude: { marketplaces: ['agent-station'] },
+  });
+  const result = await run('doctor');
+  assert.equal(result.code, 1);
+  assert.match(result.out, /✖ codex: .*failed/);
+  assert.match(result.out, /secrets\.env is missing/);
+});
+
+test('update skips a tool that does not have the agent-station marketplace', async () => {
+  const { run, tools } = setup({
+    codex: { marketplaces: ['agent-station'], plugins: [{ id: 'devflow@agent-station', enabled: true }] },
+  });
+  const result = await run('update');
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.out, /claude: agent-station marketplace not added; run station install/);
+  assert.ok(tools.calls.includes('codex plugin add devflow@agent-station'));
 });

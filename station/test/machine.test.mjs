@@ -173,11 +173,16 @@ test('ensureCodexPlugins installs missing plugins but leaves them off outside pr
 });
 
 test('station backs up the Codex user config before switching plugins off in it', () => {
-  const { deps, catalog, codexHome } = machine({ codex: { marketplaces: ['agent-station', 'claude-plugins-official'] } });
+  const { deps, catalog, codexHome } = machine({
+    codex: { marketplaces: ['agent-station', 'claude-plugins-official'] },
+  });
   ensureCodexPlugins(catalog, deps, ['research@agent-station']);
   const saved = readFileSync(join(codexHome, 'config.toml.bak-20261002T100000'), 'utf8');
   assert.match(saved, /\[plugins\."research@agent-station"\]\nenabled = true/);
-  assert.match(readFileSync(join(codexHome, 'config.toml'), 'utf8'), /\[plugins\."research@agent-station"\]\nenabled = false/);
+  assert.match(
+    readFileSync(join(codexHome, 'config.toml'), 'utf8'),
+    /\[plugins\."research@agent-station"\]\nenabled = false/,
+  );
 });
 
 test('a failed re-add during update still leaves switched-off Codex plugins off', () => {
@@ -203,6 +208,12 @@ test('a failed install during init leaves the plugins it did install off outside
     fail: ['codex plugin add context7@claude-plugins-official'],
     codex: { marketplaces: ['agent-station', 'claude-plugins-official'] },
   });
-  assert.throws(() => ensureCodexPlugins(catalog, deps, ['research@agent-station', 'context7@claude-plugins-official']), /failed/);
-  assert.match(readFileSync(join(codexHome, 'config.toml'), 'utf8'), /\[plugins\."research@agent-station"\]\nenabled = false/);
+  assert.throws(
+    () => ensureCodexPlugins(catalog, deps, ['research@agent-station', 'context7@claude-plugins-official']),
+    /failed/,
+  );
+  assert.match(
+    readFileSync(join(codexHome, 'config.toml'), 'utf8'),
+    /\[plugins\."research@agent-station"\]\nenabled = false/,
+  );
 });

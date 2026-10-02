@@ -112,7 +112,10 @@ function list(catalog, deps) {
 }
 
 const COMMANDS = {
-  install: (catalog, { flags }, deps) => (print(deps, install(catalog, deps, { dryRun: flags['dry-run'] === true })), 0),
+  install: (catalog, { flags }, deps) => (
+    print(deps, install(catalog, deps, { dryRun: flags['dry-run'] === true })),
+    0
+  ),
   update: (catalog, args, deps) => (print(deps, update(catalog, deps)), 0),
   init,
   list: (catalog, args, deps) => list(catalog, deps),
@@ -144,6 +147,7 @@ export async function main(argv, deps) {
   try {
     return COMMANDS[command](loadCatalog(deps.repo), parse(command, args), deps);
   } catch (error) {
+    if (error.lines) print(deps, error.lines);
     deps.stderr(error instanceof UsageError ? `${error.message}\n${USAGE}` : `${error.message}\n`);
     return 1;
   }
