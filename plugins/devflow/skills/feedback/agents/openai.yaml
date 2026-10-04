@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feedback'
+  short_description: 'Work through PR review comments with a written record'
+  default_prompt: 'Use $feedback to work through the review comments on this pull request.'
+policy:
+  allow_implicit_invocation: true

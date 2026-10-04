@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Bugfix'
+  short_description: 'Reproduce defects, fix causes, and verify regressions'
+  default_prompt: 'Use $bugfix to investigate this defect, correct its cause, and verify the intended behavior without disturbing unrelated work.'
+policy:
+  allow_implicit_invocation: true

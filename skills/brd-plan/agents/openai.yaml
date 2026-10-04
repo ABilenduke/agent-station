@@ -1,6 +1,0 @@
-interface:
-  display_name: "BRD Plan"
-  short_description: "Clarify requirements and plan verifiable delivery"
-  default_prompt: "Use $brd-plan to investigate this change, clarify consequential requirements, and produce one BRD with delivery steps."
-policy:
-  allow_implicit_invocation: true

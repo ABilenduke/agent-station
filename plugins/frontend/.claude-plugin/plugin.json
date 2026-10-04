@@ -1,0 +1,9 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "frontend",
+  "description": "Frontend design craft: the frontend-craft skill for building and reviewing distinctive, accessible, production-quality web interfaces.",
+  "author": {
+    "name": "Andrew Bilenduke",
+    "email": "andrewbilenduke@gmail.com"
+  }
+}

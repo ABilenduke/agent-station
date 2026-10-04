@@ -1,9 +1,5 @@
 node_modules/
-chatmodes/
-instructions/
-prompts/
-references/
-toolkits/
-.schemas/
+/references/
 .vscode/
 README*.md
+plugins/devflow/

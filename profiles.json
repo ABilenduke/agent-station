@@ -1,0 +1,14 @@
+{
+  "marketplaces": {
+    "agent-station": "ABilenduke/agent-station",
+    "claude-plugins-official": "anthropics/claude-plugins-official",
+    "obsidian-skills": "kepano/obsidian-skills"
+  },
+  "install": "base",
+  "profiles": {
+    "base": ["devflow@agent-station", "context7@claude-plugins-official"],
+    "web": ["@base", "frontend@agent-station", "playwright@claude-plugins-official"],
+    "laravel": ["@web", "laravel-boost@claude-plugins-official"],
+    "research": ["research@agent-station", "obsidian@obsidian-skills"]
+  }
+}

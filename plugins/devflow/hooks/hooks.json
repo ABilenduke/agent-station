@@ -1,0 +1,104 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${WORKLOG_STATE_DIR:-/tmp/worklog-$(id -u)}\"; if [ -s \"$d/active.json\" ]; then node \"${CLAUDE_PLUGIN_ROOT}/dist/cli.js\" hook; else cat >/dev/null; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

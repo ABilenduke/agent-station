@@ -1,0 +1,31 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-station",
+  "owner": {
+    "name": "Andrew Bilenduke",
+    "email": "andrewbilenduke@gmail.com"
+  },
+  "metadata": {
+    "description": "Andrew Bilenduke's skills, agents, hooks and MCP servers for Claude Code and Codex."
+  },
+  "plugins": [
+    {
+      "name": "devflow",
+      "source": "./plugins/devflow",
+      "description": "Development workflow: bugfix and feedback skills, and worklog time-ledger hooks.",
+      "category": "development"
+    },
+    {
+      "name": "research",
+      "source": "./plugins/research",
+      "description": "Research memory between Obsidian and NotebookLM, with the obsidian-vault MCP server.",
+      "category": "productivity"
+    },
+    {
+      "name": "frontend",
+      "source": "./plugins/frontend",
+      "description": "The frontend-craft skill for distinctive, accessible, production-quality interfaces.",
+      "category": "development"
+    }
+  ]
+}

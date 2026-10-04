@@ -1,0 +1,9 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "research",
+  "description": "Research memory that round-trips between Obsidian and NotebookLM: the research-memory and notebooklm skills, and the obsidian-vault MCP server.",
+  "author": {
+    "name": "Andrew Bilenduke",
+    "email": "andrewbilenduke@gmail.com"
+  }
+}

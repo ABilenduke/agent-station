@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Plan"
-  short_description: "Check delivered work against requirements and evidence"
-  default_prompt: "Use $review-plan to review this implementation against its plan, report actionable findings, and assess acceptance coverage."
-policy:
-  allow_implicit_invocation: true

@@ -1,56 +1,46 @@
 {
-  "name": "copilot-developer",
+  "name": "agent-station",
   "version": "1.0.0",
-  "description": "A curated list of developer friendly, production ready instructions, chatmodes, prompts and toolkits for mastering GitHub Copilot.",
+  "private": true,
+  "description": "One place for the skills, agents, hooks, MCP servers and CLIs used with Claude Code and Codex, published as a plugin marketplace.",
   "author": "Andrew Bilenduke (https://github.com/abilenduke)",
   "license": "MIT",
-  "homepage": "https://github.com/abilenduke/copilot-developer#readme",
+  "homepage": "https://github.com/abilenduke/agent-station#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/abilenduke/copilot-developer.git"
+    "url": "git+https://github.com/abilenduke/agent-station.git"
   },
   "bugs": {
-    "url": "https://github.com/abilenduke/copilot-developer/issues"
+    "url": "https://github.com/abilenduke/agent-station/issues"
   },
   "keywords": [
-    "github",
-    "github-copilot",
-    "copilot",
-    "copilot-prompts",
-    "prompt-engineering",
-    "instructions",
-    "agents",
-    "mcp",
-    "toolkits",
-    "ai-assistant",
-    "developer-resources",
-    "developer-tools",
-    "programming-tools",
-    "code-generation",
-    "awesome-list",
-    "curated-list",
-    "software-development",
-    "awesome"
+    "claude-code",
+    "codex",
+    "agent-skills",
+    "plugin-marketplace",
+    "mcp"
   ],
+  "bin": {
+    "station": "station/station.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "readme-update": "node scripts/readme-update.js",
-    "toolkit-validate": "node scripts/toolkit-validate.js",
-    "toolkit-create": "node scripts/toolkit-create.js",
+    "test": "node --test station/test/*.test.mjs && npm --prefix plugins/devflow test",
+    "validate": "node station/station.mjs validate",
+    "check": "npm run lint && npm run format && npm test && npm run validate && npm --prefix plugins/devflow run check:dist",
     "lint": "eslint .",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --check .",
-    "format:write": "prettier --write .",
-    "contributors:add": "all-contributors add",
-    "contributors:generate": "all-contributors generate",
-    "contributors:check": "all-contributors check"
-  },
-  "dependencies": {
-    "all-contributors-cli": "^6.26.1"
+    "format:write": "prettier --write ."
   },
   "devDependencies": {
+    "@types/node": "^26.6.2",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "typescript": "^7.0.2"
   }
 }

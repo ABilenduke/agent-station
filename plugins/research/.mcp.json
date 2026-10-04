@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "obsidian-vault": {
+      "command": "bash",
+      "args": [
+        "-c",
+        ". \"$HOME/.config/agent-station/secrets.env\" || exit 1; export OBSIDIAN_API_KEY OBSIDIAN_HOST OBSIDIAN_PORT; exec uvx mcp-obsidian@0.2.3"
+      ]
+    }
+  }
+}
