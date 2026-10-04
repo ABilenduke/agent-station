@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "devflow",
-  "description": "Development workflow: the bugfix and feedback skills, and the worklog time-ledger hooks that measure active time on feature steps for Claude Code and Codex.",
+  "description": "Development workflow: feature skills that keep each piece of work on its GitHub issue (brief, research, plan, execute, review), bugfix and feedback, and worklog, which measures active time on each step and forecasts estimates from that history, for Claude Code and Codex.",
   "author": {
     "name": "Andrew Bilenduke",
     "email": "andrewbilenduke@gmail.com"

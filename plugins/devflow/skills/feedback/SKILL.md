@@ -30,12 +30,16 @@ any repository with the `gh` CLI authenticated; `gh` infers the repository from 
    gh api "repos/$repo/pulls/{number}/reviews" \
      --jq '.[] | {state: .state, body: .body, user: .user.login}'
    ```
-3. Find the issue the PR came from, if any: `Closes #N` or a linked issue in the PR description.
-   Read it for what was intended:
+3. Find the issue the PR came from, if any. GitHub's closing references come first, then a
+   `Part of #N` or `Related to #N` in the PR description. Read it for what was intended:
    ```bash
+   gh pr view {number} --json closingIssuesReferences --jq '.closingIssuesReferences[].number'
    gh issue view {issue} --comments
    ```
    A PR without an issue is fine.
+4. When the PR has an issue and `worklog` is on the `PATH`, time the review cycle on it as unplanned
+   rework: `worklog start issue-{issue} feedback` now (no estimate), and
+   `worklog finish issue-{issue} feedback` and `worklog post issue-{issue}` once the loop is closed.
 
 ## 1. Gather and categorise
 
@@ -68,10 +72,14 @@ bigger PR: defer it and say so.
 ## 4. Close the loop
 
 1. Push the fix commits to the PR branch.
-2. Reply on the PR so the reviewer sees what changed without reading every commit:
+2. Reply on the PR so the reviewer sees what changed without reading every commit. Keep one
+   summary for the whole PR: with `worklog` on the `PATH`, read the previous round's summary
+   (`worklog issue comment {number} feedback`), keep its rows, add this round's under a new
+   numbered heading, and write it back, which edits the same comment. Without `worklog`, post it
+   with `gh pr comment {number} --body-file -`.
 
    ```bash
-   gh pr comment {number} --body-file - <<'EOF'
+   worklog issue comment {number} feedback --file - <<'EOF'
    ## Feedback addressed
 
    | # | Type | Summary | Resolution |

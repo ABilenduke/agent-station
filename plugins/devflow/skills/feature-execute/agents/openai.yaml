@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feature Execute'
+  short_description: 'Implement an approved plan, journalling each step on the issue'
+  default_prompt: "Use $feature-execute to carry on with this issue's plan."
+policy:
+  allow_implicit_invocation: true
