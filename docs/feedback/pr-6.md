@@ -15,6 +15,9 @@
 **Resolution**: Pending
 **Commit**: —
 
+**Resolved**: Fixed. `init` now stages every project file (settings, Codex TOML, AGENTS.md, CLAUDE.md) and writes them together; a failed write restores the files already written.
+**Commit**: 556df97
+
 ### 2. `worklog join` skips the busy-session guard
 
 **Type**: Logic
@@ -22,6 +25,9 @@
 **Raised**: "`join` does not apply the busy-session guard used by `start`. If a session bound to S1 joins S2, `bind()` removes its S1 binding and adds S2, leaving S1 open while subsequent hooks are attributed to S2. Reject joins when any session ID is already bound to a different directory or step."
 **Resolution**: Pending
 **Commit**: —
+
+**Resolved**: Fixed. `join` uses the same busy-session guard as `start` and rejects before writing to the ledger or changing bindings.
+**Commit**: 7b54570
 
 ### 3. Worklog state directory is trusted without ownership or permission checks
 
@@ -31,6 +37,9 @@
 **Resolution**: Pending
 **Commit**: —
 
+**Resolved**: Fixed. The state directory is created 0700 and active.json 0600; a symlink or a directory owned by someone else is refused for writes and ignored for reads.
+**Commit**: 5863088
+
 ### 4. Ledger timestamps are not validated against the documented ISO 8601 format
 
 **Type**: Logic
@@ -39,6 +48,9 @@
 **Resolution**: Pending
 **Commit**: —
 
+**Resolved**: Fixed. `ts` must match full ISO 8601 with `Z` or an explicit offset before it is parsed.
+**Commit**: 636dd36
+
 ## Summary
 
-Pending.
+4 items: 4 fixed, 0 deferred, 0 declined
