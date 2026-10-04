@@ -290,6 +290,19 @@ function post(args: string[], deps: CliDeps): number {
   const match = ref === undefined ? null : ISSUE_REF.exec(ref);
   if (!match) throw new UsageError('post needs an issue-N ref.');
   const dir = featureDir(ref, deps);
+  const path = ledgerPath(dir);
+  if (!existsSync(path)) {
+    deps.stderr(`No time.jsonl in ${dir}; nothing to post.\n`);
+    return 1;
+  }
+  const { events, problems } = readLedger(path);
+  for (const p of problems) deps.stderr(`time.jsonl line ${p.line}: ${p.message}\n`);
+  if (problems.length > 0 || events.length === 0) {
+    deps.stderr(
+      problems.length > 0 ? 'Fix the ledger before posting.\n' : 'time.jsonl has no events; nothing to post.\n',
+    );
+    return 1;
+  }
   const content = render(dir);
   const result = deps.exec('gh', ['issue', 'comment', match[1] ?? '', '--body-file', join(dir, 'time.md')]);
   if (result.status !== 0) {

@@ -272,3 +272,25 @@ test('summary reads .agent/worklog when no folder is given', async () => {
   assert.equal(result.code, 0, result.err);
   assert.match(result.out, /issue-9/);
 });
+
+test('post refuses a missing, empty or malformed ledger and never calls gh', async () => {
+  const folder = join(root, '.agent', 'worklog', 'issue-9');
+  mkdirSync(folder, { recursive: true });
+  const missing = await run(['post', 'issue-9']);
+  assert.equal(missing.code, 1);
+  assert.match(missing.err, /No time\.jsonl/);
+
+  writeFileSync(join(folder, 'time.jsonl'), '');
+  const empty = await run(['post', 'issue-9']);
+  assert.equal(empty.code, 1);
+  assert.match(empty.err, /no events/);
+
+  await run(['start', 'issue-9', 'S1'], claude);
+  writeFileSync(join(folder, 'time.jsonl'), `${readFileSync(join(folder, 'time.jsonl'), 'utf8')}not json\n`);
+  const malformed = await run(['post', 'issue-9']);
+  assert.equal(malformed.code, 1);
+  assert.match(malformed.err, /line 1: not valid JSON|line 2: not valid JSON/);
+  assert.match(malformed.err, /Fix the ledger/);
+
+  assert.deepEqual(execCalls, []);
+});
