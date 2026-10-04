@@ -26,7 +26,7 @@ any repository with the `gh` CLI authenticated; `gh` infers the repository from 
    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
    gh pr view {number} --json title,body,reviews,comments,reviewDecision
    gh api "repos/$repo/pulls/{number}/comments" \
-     --jq '.[] | {path: .path, line: .line, body: .body, user: .user.login}'
+     --jq '.[] | {id: .id, in_reply_to_id: .in_reply_to_id, path: .path, line: .line, body: .body, user: .user.login}'
    gh api "repos/$repo/pulls/{number}/reviews" \
      --jq '.[] | {state: .state, body: .body, user: .user.login}'
    ```
@@ -47,7 +47,8 @@ before changing anything.
 ## 2. Track
 
 Keep the numbered list in the session's task list, with each item's summary, type, files and what was
-raised (quoted or closely paraphrased), starting as pending. Do not write it to a file in the
+raised (quoted or closely paraphrased), starting as pending. For an inline comment also keep its thread
+root: `in_reply_to_id` when it is set, otherwise its own `id`. Do not write it to a file in the
 repository. The record is the reply posted on the PR in step 4. Never reword what the reviewer raised
 when you quote it there.
 
@@ -84,9 +85,9 @@ bigger PR: defer it and say so.
    ```
 
 3. For each inline review comment, reply in its thread with the resolution so the reviewer can resolve
-   it where they raised it:
+   it where they raised it. Use the thread root's ID, since a reply cannot be the parent of another:
    ```bash
-   gh api "repos/$repo/pulls/{number}/comments/{comment_id}/replies" -f body="Fixed in {hash}"
+   gh api "repos/$repo/pulls/{number}/comments/{root_comment_id}/replies" -f body="Fixed in {hash}"
    ```
 
 Finish by telling the user how many items were fixed, deferred and declined. Offer to open each
