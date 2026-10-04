@@ -270,8 +270,17 @@ function check(args, deps) {
     deps.stdout(`${basename(dir)}: ${events.length} events, time.md current.\n`);
     return 0;
 }
+/** GitHub's owner and repository name characters; anything else is refused before it reaches a path. */
+const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+function repoFlag(flags) {
+    const repo = stringFlag(flags, 'repo');
+    if (repo !== undefined && (!REPO.test(repo) || repo.endsWith('/..') || repo.endsWith('/.'))) {
+        throw new UsageError(`--repo takes owner/repo, not "${repo}".`);
+    }
+    return repo;
+}
 function github(flags, deps) {
-    return new GitHub(deps.exec, stringFlag(flags, 'repo'));
+    return new GitHub(deps.exec, repoFlag(flags));
 }
 /** Names the harness and time, since a comment posted by an agent goes out under the person's account. */
 function provenance(deps) {
@@ -372,8 +381,9 @@ function localHistory(deps) {
 }
 /** Time data from the repository's issues, cached under .agent/worklog, plus this machine's ledgers. */
 function loadHistory(flags, deps) {
-    const repo = stringFlag(flags, 'repo');
-    const name = repo === undefined ? 'history.json' : `history-${repo.replace('/', '-')}.json`;
+    const repo = repoFlag(flags);
+    // Encoding the whole owner/repo keeps the name in one path component and unique per repository.
+    const name = repo === undefined ? 'history.json' : `history-${encodeURIComponent(repo)}.json`;
     const cache = join(repoRoot(deps.cwd), LEDGER_HOME, name);
     return { history: collectHistory(github(flags, deps), cache, repo === undefined ? localHistory(deps) : []), cache };
 }

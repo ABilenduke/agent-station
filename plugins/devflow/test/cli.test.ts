@@ -501,3 +501,18 @@ test('forecast says when there is no basis yet, and rejects malformed estimates'
   assert.equal(bad.code, 1);
   assert.match(bad.err, /step=estimate/);
 });
+
+test('history keeps one cache per repository, named so no two collide or leave the cache folder', async () => {
+  mkdirSync(join(root, '.git'));
+  github.issue(1);
+  assert.equal((await run(['history', '--repo', 'a-b/c'])).code, 0);
+  assert.equal((await run(['history', '--repo', 'a/b-c'])).code, 0);
+  const home = join(root, '.agent', 'worklog');
+  assert.ok(existsSync(join(home, 'history-a-b%2Fc.json')));
+  assert.ok(existsSync(join(home, 'history-a%2Fb-c.json')));
+  for (const bad of ['owner/../../x', '../x', 'owner', 'a/b/c']) {
+    const result = await run(['history', '--repo', bad]);
+    assert.equal(result.code, 1, bad);
+    assert.match(result.err, /owner\/repo/);
+  }
+});
