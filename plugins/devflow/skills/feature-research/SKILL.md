@@ -105,11 +105,14 @@ the open decision. Requirement IDs stay as they are until the user decides.
 
 ## 5. Decide, then close the stage
 
-1. **Go/no-go.** Put the recommendation to the user: plan it, change the scope, or stop. Stopping
-   closes the issue as not planned, with the reason in Decisions.
+1. **Decide.** For a feature, put the recommendation to the user (go/no-go): plan it, change the
+   scope, or stop. Stopping closes the issue as not planned, with the reason in Decisions. A
+   `type:spike` ends here: record the answer, and the decision it serves, in Decisions.
 2. **Reusable knowledge:** offer to store findings that hold beyond this repository in the vault
    with `research-memory`; link the note under Links.
 3. Links section: the research comment. Status section: next action.
-4. `worklog finish issue-N research`, `worklog post issue-N`, and swap `stage:research` for
-   `stage:plan`.
-5. Report the status, the recommendation in one line, and the next skill: `feature-plan`.
+4. `worklog finish issue-N research` and `worklog post issue-N`. A feature moves from
+   `stage:research` to `stage:plan`. A spike moves to `stage:done` and, once the user agrees, closes
+   with `gh issue close N --reason completed`.
+5. Report the status, the recommendation in one line, and the next skill: `feature-plan` for a
+   feature, none for a spike (a feature it leads to gets its own issue through `feature-brief`).
