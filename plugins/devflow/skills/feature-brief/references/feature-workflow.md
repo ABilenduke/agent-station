@@ -116,7 +116,8 @@ it a sub-issue of the broader one (see below), so its PR can close it without cl
 - **Branch:** `gh issue develop N --name <type>/<N>-<slug> --checkout`, where type is `feat`, `fix`,
   `chore`, `docs` or `spike`. GitHub then lists the branch, and the PR opened from it, on the issue.
   It creates the branch on the remote, so ask first. Add `--base <branch>` when not branching from
-  the default branch.
+  the default branch. Once a PR is open from it, the issue lists the PR instead of the branch:
+  `gh issue view N --json closedByPullRequestsReferences`, then the PR's `headRefName`.
 - **Commits** follow the repository's convention.
 - **PR body:** `Closes #N` when merging it completes the issue, `Part of #N` when it does not. Then
   what changed, the REQ coverage table, the verification actually run, and risk and rollback. Use the

@@ -20,7 +20,9 @@ first; it is the contract for the issue, and the repository's `AGENTS.md` wins o
 3. In plan mode, or when the user asked for no writes, assess readiness only and write nothing.
 4. The plan's Definition of Ready must be ticked, including the approval line, and the user must
    have asked to execute. With an unticked item, only discovery steps may run.
-5. **Branch:** the issue's linked branch (`gh issue develop --list N`), or create one with
+5. **Branch:** the issue's branch. Before a PR exists, `gh issue develop --list N` lists it; once a
+   PR is open, GitHub lists the PR instead (`gh issue view N --json closedByPullRequestsReferences`)
+   and the branch is its head (`gh pr view <pr> --json headRefName`). With neither, create one with
    `gh issue develop N --name <type>/<N>-<slug> --checkout` after the user agrees. Never work on the
    default branch. Unrelated changes in the tree are preserved; stop and ask if they are in the way.
 6. Run the baseline checks once and note failures that already exist.
