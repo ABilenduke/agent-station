@@ -166,3 +166,12 @@ test('planScaffold skips the PR template when the project keeps one anywhere Git
 test('planScaffold ignores plugins without a scaffold folder', () => {
   assert.deepEqual(planScaffold(tempDir(), [tempDir('station-plugin-'), null]), []);
 });
+
+test('planScaffold merges every plugin’s .gitignore rules into one change', () => {
+  const project = writeTree(tempDir(), { '.gitignore': 'node_modules\n' });
+  const first = writeTree(tempDir('station-plugin-'), { 'scaffold/.gitignore': '.agent/\n' });
+  const second = writeTree(tempDir('station-plugin-'), { 'scaffold/.gitignore': '.cache/\n.agent/\n' });
+  const files = planScaffold(project, [first, second]).filter((f) => f.name === '.gitignore');
+  assert.equal(files.length, 1);
+  assert.equal(files[0].text, 'node_modules\n\n.agent/\n\n.cache/\n');
+});

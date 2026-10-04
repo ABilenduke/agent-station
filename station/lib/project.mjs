@@ -136,9 +136,12 @@ export function planScaffold(dir, pluginDirs) {
       const text = readFileSync(join(root, name), 'utf8');
       const path = join(dir, name);
       if (name === '.gitignore') {
-        const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
+        // Several plugins may add rules: merge each into the pending change, not the file on disk.
+        const pending = files.find((f) => f.name === name);
+        const current = pending?.text ?? (existsSync(path) ? readFileSync(path, 'utf8') : '');
         const merged = mergeGitignore(current, text);
-        if (merged !== current) files.push({ name, path, text: merged });
+        if (pending) pending.text = merged;
+        else if (merged !== current) files.push({ name, path, text: merged });
       } else if (name.toLowerCase() === '.github/pull_request_template.md') {
         if (!PR_TEMPLATES.some((p) => hasPath(dir, p))) files.push({ name, path, text });
       } else if (!hasPath(dir, name)) files.push({ name, path, text });
