@@ -2,6 +2,8 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 export const STEP_EVENTS = ['step-start', 'join', 'step-finish'];
 export const ACTIVITY_EVENTS = ['prompt', 'stop', 'tool', 'subagent', 'wait'];
 const EVENT_NAMES = new Set([...STEP_EVENTS, ...ACTIVITY_EVENTS]);
+/** ISO 8601 date and time with `Z` or an explicit offset, the form the ledger contract requires. */
+const ISO_TS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const HARNESSES = new Set(['claude-code', 'codex', 'shell']);
 export function isActivity(event) {
     return ACTIVITY_EVENTS.includes(event);
@@ -12,7 +14,7 @@ function problemWith(value) {
     const o = value;
     if (o['v'] !== 1)
         return 'unsupported version';
-    if (typeof o['ts'] !== 'string' || Number.isNaN(Date.parse(o['ts'])))
+    if (typeof o['ts'] !== 'string' || !ISO_TS.test(o['ts']) || Number.isNaN(Date.parse(o['ts'])))
         return 'bad ts';
     if (typeof o['event'] !== 'string' || !EVENT_NAMES.has(o['event']))
         return `unknown event ${String(o['event'])}`;

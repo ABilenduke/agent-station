@@ -27,6 +27,8 @@ export interface LedgerProblem {
 }
 
 const EVENT_NAMES = new Set<string>([...STEP_EVENTS, ...ACTIVITY_EVENTS]);
+/** ISO 8601 date and time with `Z` or an explicit offset, the form the ledger contract requires. */
+const ISO_TS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const HARNESSES = new Set<string>(['claude-code', 'codex', 'shell']);
 
 export function isActivity(event: EventName): event is ActivityEventName {
@@ -37,7 +39,7 @@ function problemWith(value: unknown): string | null {
   if (typeof value !== 'object' || value === null) return 'not a JSON object';
   const o = value as Record<string, unknown>;
   if (o['v'] !== 1) return 'unsupported version';
-  if (typeof o['ts'] !== 'string' || Number.isNaN(Date.parse(o['ts']))) return 'bad ts';
+  if (typeof o['ts'] !== 'string' || !ISO_TS.test(o['ts']) || Number.isNaN(Date.parse(o['ts']))) return 'bad ts';
   if (typeof o['event'] !== 'string' || !EVENT_NAMES.has(o['event'])) return `unknown event ${String(o['event'])}`;
   if (typeof o['step'] !== 'string' || o['step'] === '' || /[|\n]/.test(o['step'])) return 'bad step';
   if (o['session'] !== null && typeof o['session'] !== 'string') return 'bad session';

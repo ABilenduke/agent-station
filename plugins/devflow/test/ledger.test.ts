@@ -14,6 +14,16 @@ test('valid lines are kept in order and blank lines skipped', () => {
   assert.deepEqual(problems, []);
 });
 
+test('timestamps must be full ISO 8601 with an offset or Z', () => {
+  const withTs = (ts: string): string => good.replace('2026-10-05T09:00:00-04:00', ts);
+  for (const ts of ['2026-10-05', '2026-10-05T09:00:00', 'Oct 5, 2026 9:00 AM', '2026-10-05 09:00:00-04:00']) {
+    assert.deepEqual(parseLedger(withTs(ts)).problems, [{ line: 1, message: 'bad ts' }], ts);
+  }
+  for (const ts of ['2026-10-05T09:00:00Z', '2026-10-05T09:00:00.123+05:30']) {
+    assert.deepEqual(parseLedger(withTs(ts)).problems, [], ts);
+  }
+});
+
 test('bad lines are reported by line number with the reason', () => {
   const lines = [
     good,
