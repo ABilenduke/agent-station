@@ -115,3 +115,16 @@ test('commentContent is what markedComment wrapped, without the marker or proven
   assert.equal(commentContent('\r\n<!-- devflow:comment time -->\r\nbody\r\n\r\n<sub>x</sub>\r\n'), 'body');
   assert.equal(commentContent('plain text'), 'plain text');
 });
+
+test('appending a section keeps every existing byte and follows the body’s line endings', () => {
+  const spaced = 'Ends with spaces   ';
+  assert.ok(setSection(spaced, 'brief', 'x').startsWith(`${spaced}\n\n<!-- devflow:section brief -->`));
+  assert.equal(
+    setSection('Intro\r\n', 'brief', 'Line one\nLine two\n'),
+    'Intro\r\n\r\n<!-- devflow:section brief -->\r\nLine one\r\nLine two\r\n<!-- /devflow:section brief -->\r\n',
+  );
+  assert.equal(
+    setSection('Intro\n\n', 'brief', 'x'),
+    'Intro\n\n<!-- devflow:section brief -->\nx\n<!-- /devflow:section brief -->\n',
+  );
+});

@@ -53,11 +53,13 @@ function tidy(content: string): string {
 /** The body with one section replaced, or appended when it is missing; everything else is kept. */
 export function setSection(body: string, name: string, content: string): string {
   const m = markers(checkKey(name));
-  const block = `${m.start}\n${tidy(content)}\n${m.end}`;
+  const eol = body.includes('\r\n') ? '\r\n' : '\n';
+  const block = [m.start, tidy(content).replace(/\r?\n/g, eol), m.end].join(eol);
   const at = locate(body, name);
   if (at) return `${body.slice(0, at.start)}${block}${body.slice(at.end + at.endLength)}`;
-  const before = body.trimEnd();
-  return `${before}${before === '' ? '' : '\n\n'}${block}\n`;
+  // Appended after the body exactly as it is, separated by a blank line.
+  const gap = body === '' || body.endsWith(eol + eol) ? '' : body.endsWith(eol) ? eol : eol + eol;
+  return `${body}${gap}${block}${eol}`;
 }
 
 function commentMarker(key: string): string {
