@@ -2,7 +2,7 @@
 
 For a durable record, follow an explicit destination or repository convention. If the user asks for a
 record without specifying either, keep it in a GitHub issue, not in a file in the repository: reuse the
-issue for the same defect (`gh issue list --search "<topic>"`), otherwise create one with
+issue for the same defect (`gh issue list --state all --search "<topic>"`, so a closed record for a recurring defect is found), otherwise create one with
 `gh issue create` after the user agrees, since that publishes the text. Without `gh` access or a
 GitHub remote, keep the record in chat. No record is required for every fix.
 
@@ -14,9 +14,11 @@ Keep these fields concise:
 - **Correction:** Files and behavior changed, relevant compatibility constraints.
 - **Verification:** Actual checks and results, baseline failures, limitations, and next action.
 
-On resumption, read the issue and its comments, then reconcile the report, current code, working tree/index, and tests before acting. Edit
-the issue body to replace stale current-state claims, and add a comment for consequential history. Never treat
-a previous Fixed status as proof that the current checkout still satisfies the regression.
+On resumption, read the existing record where it lives (the issue and its comments, the file, or the
+chat), then reconcile its report with the current code, working tree/index, and tests before acting.
+Replace stale current-state claims in place (for an issue, edit its body) and retain consequential
+history with brief dated corrections (for an issue, as a comment). Never treat a previous Fixed status
+as proof that the current checkout still satisfies the regression.
 
 ## Example: zero retries becomes the default
 
