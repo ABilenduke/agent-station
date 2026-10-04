@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   check-line-endings:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Validate Line Endings in Markdown Files
         run: |
