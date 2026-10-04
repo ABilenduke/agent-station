@@ -15,9 +15,13 @@ runCli(process.argv.slice(2), {
     now: () => new Date(),
     stateDir: defaultStateDir(process.env, process.getuid?.() ?? 0),
     cwd: process.cwd(),
-    exec: (command, args) => {
-        const result = spawnSync(command, args, { encoding: 'utf8' });
-        return { status: result.status ?? 1, output: `${result.stdout}${result.stderr}${result.error?.message ?? ''}` };
+    exec: (command, args, input) => {
+        const result = spawnSync(command, args, { encoding: 'utf8', ...(input === undefined ? {} : { input }) });
+        return {
+            status: result.status ?? 1,
+            stdout: result.stdout ?? '',
+            stderr: `${result.stderr ?? ''}${result.error?.message ?? ''}`,
+        };
     },
     stdin: readStdin,
     stdout: (s) => process.stdout.write(s),

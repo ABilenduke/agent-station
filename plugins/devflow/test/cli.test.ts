@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runCli, type CliDeps } from '../src/cli-core.js';
 import { parseLedger } from '../src/ledger.js';
+import { FakeGitHub } from './fake-gh.js';
+import { dataLine, parseDataLine } from '../src/history.js';
 
 let root: string;
 let feature: string;
@@ -17,8 +19,7 @@ beforeEach(() => {
   mkdirSync(feature, { recursive: true });
   stateDir = join(root, 'state');
   clock = Date.parse('2026-10-05T09:00:00-04:00');
-  execCalls = [];
-  execStatus = 0;
+  github = new FakeGitHub();
 });
 
 interface Run {
@@ -27,8 +28,7 @@ interface Run {
   err: string;
 }
 
-let execCalls: Array<{ command: string; args: string[] }>;
-let execStatus: number;
+let github: FakeGitHub;
 
 async function run(argv: string[], env: Record<string, string> = {}, stdin = ''): Promise<Run> {
   let out = '';
@@ -38,10 +38,7 @@ async function run(argv: string[], env: Record<string, string> = {}, stdin = '')
     now: () => new Date(clock),
     stateDir,
     cwd: root,
-    exec: (command, args) => {
-      execCalls.push({ command, args });
-      return { status: execStatus, output: execStatus === 0 ? '' : 'no auth' };
-    },
+    exec: (command, args, input) => github.exec(command, args, input),
     stdin: async () => stdin,
     stdout: (s) => {
       out += s;
@@ -241,27 +238,74 @@ test('an issue-N ledger that was never started is reported, not created', async 
   assert.equal(existsSync(join(root, '.agent')), false);
 });
 
-test('post comments the rendered time.md on the issue with gh', async () => {
+test('post puts the rendered time.md, without frontmatter, in one marked comment on the issue', async () => {
+  github.issue(9);
   await run(['start', 'issue-9', 'S1'], claude);
   await run(['finish', 'issue-9', 'S1'], claude);
-  const result = await run(['post', 'issue-9']);
+  const result = await run(['post', 'issue-9'], claude);
   assert.equal(result.code, 0, result.err);
-  const [call] = execCalls;
-  assert.equal(call?.command, 'gh');
-  assert.deepEqual(call?.args.slice(0, 3), ['issue', 'comment', '9']);
-  assert.equal(call?.args[3], '--body-file');
-  assert.equal(call?.args[4], join(root, '.agent', 'worklog', 'issue-9', 'time.md'));
+  const [comment] = github.comments(9);
+  assert.ok(comment);
+  assert.ok(comment.body.startsWith('<!-- devflow:comment time -->\n# Time: issue-9\n'));
+  assert.doesNotMatch(comment.body, /doc: time/);
+  assert.match(comment.body, /\n\n<sub>devflow · claude-code · \d{4}-\d\d-\d\d \d\d:\d\d<\/sub>\n$/);
+  assert.match(result.out, /Created the time comment on #9/);
+});
+
+test('posting again updates the same comment instead of adding another', async () => {
+  github.issue(9);
+  await run(['start', 'issue-9', 'S1'], claude);
+  await run(['finish', 'issue-9', 'S1'], claude);
+  await run(['post', 'issue-9']);
+  advance(10);
+  await run(['start', 'issue-9', 'S2'], claude);
+  await run(['finish', 'issue-9', 'S2'], claude);
+  const again = await run(['post', 'issue-9']);
+  assert.equal(again.code, 0, again.err);
+  assert.equal(github.comments(9).length, 1);
+  assert.match(github.comments(9)[0]?.body ?? '', /\| S2 /);
+  assert.match(again.out, /Updated the time comment on #9/);
+});
+
+test('post refuses to replace a time comment that reports steps this ledger lacks, unless forced', async () => {
+  github.issue(9);
+  github.comment(
+    9,
+    'owner',
+    '<!-- devflow:comment time -->\n# Time: issue-9\n\n| Step | Estimate |\n| ---- | -------- |\n| brief | 30m |\n| S1 | 1h |\n| **Total** | 1h30m |\n',
+  );
+  await run(['start', 'issue-9', 'S2'], claude);
+  await run(['finish', 'issue-9', 'S2'], claude);
+  const refused = await run(['post', 'issue-9']);
+  assert.equal(refused.code, 1);
+  assert.match(refused.err, /brief, S1/);
+  assert.match(refused.err, /--force/);
+  assert.match(github.comments(9)[0]?.body ?? '', /\| S1 /);
+  const forced = await run(['post', 'issue-9', '--force']);
+  assert.equal(forced.code, 0, forced.err);
+  assert.doesNotMatch(github.comments(9)[0]?.body ?? '', /\| S1 /);
 });
 
 test('post fails clearly when gh fails, and only accepts issue-N refs', async () => {
   await run(['start', 'issue-9', 'S1'], claude);
-  execStatus = 1;
+  github.failure = 'no auth';
   const failed = await run(['post', 'issue-9']);
   assert.equal(failed.code, 1);
-  assert.match(failed.err, /gh issue comment failed: no auth/);
+  assert.match(failed.err, /gh api .* failed: no auth/);
   const folder = await run(['post', feature]);
   assert.equal(folder.code, 1);
   assert.match(folder.err, /issue-N/);
+});
+
+test('post to an issue that does not exist fails without creating anything', async () => {
+  await run(['start', 'issue-9', 'S1'], claude);
+  const result = await run(['post', 'issue-9']);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /404/);
+  assert.equal(
+    github.calls.some((c) => c.args.includes('POST')),
+    false,
+  );
 });
 
 test('summary reads .agent/worklog when no folder is given', async () => {
@@ -292,5 +336,168 @@ test('post refuses a missing, empty or malformed ledger and never calls gh', asy
   assert.match(malformed.err, /line 1: not valid JSON|line 2: not valid JSON/);
   assert.match(malformed.err, /Fix the ledger/);
 
-  assert.deepEqual(execCalls, []);
+  assert.deepEqual(github.calls, []);
+});
+
+test('issue section replaces one marked section of the body and keeps the rest', async () => {
+  github.issue(12, 'Edited by hand.\n\n<!-- devflow:section brief -->\nold\n<!-- /devflow:section brief -->\n');
+  writeFileSync(join(root, 'brief.md'), 'new brief\n');
+  const result = await run(['issue', 'section', '12', 'brief', '--file', 'brief.md']);
+  assert.equal(result.code, 0, result.err);
+  assert.equal(
+    github.issues.get(12)?.body,
+    'Edited by hand.\n\n<!-- devflow:section brief -->\nnew brief\n<!-- /devflow:section brief -->\n',
+  );
+  assert.match(result.out, /Updated section brief on #12/);
+});
+
+test('issue section adds a missing section, reading the content from stdin, even to an empty body', async () => {
+  github.issue(12, null);
+  const result = await run(['issue', 'section', '12', 'plan', '--file', '-'], {}, 'the plan\n');
+  assert.equal(result.code, 0, result.err);
+  assert.equal(
+    github.issues.get(12)?.body,
+    '<!-- devflow:section plan -->\nthe plan\n<!-- /devflow:section plan -->\n',
+  );
+  assert.match(result.out, /Added section plan to #12/);
+});
+
+test('issue section refuses empty content, a bad name and a body it cannot edit safely', async () => {
+  github.issue(12, '<!-- devflow:section brief -->\nopen\n');
+  assert.match((await run(['issue', 'section', '12', 'brief', '--file', '-'], {}, '  \n')).err, /empty/);
+  assert.match((await run(['issue', 'section', '12', 'two words', '--file', '-'], {}, 'x')).err, /Invalid/);
+  assert.match((await run(['issue', 'section', 'twelve', 'brief', '--file', '-'], {}, 'x')).err, /issue number/);
+  const unsafe = await run(['issue', 'section', '12', 'brief', '--file', '-'], {}, 'x');
+  assert.equal(unsafe.code, 1);
+  assert.match(unsafe.err, /no end marker/);
+  assert.equal(
+    github.calls.some((c) => c.args.includes('PATCH')),
+    false,
+  );
+});
+
+test('issue comment creates this account’s marked comment, then edits it on later runs', async () => {
+  github.issue(12);
+  github.comment(12, 'stranger', '<!-- devflow:comment research -->\nplanted');
+  const first = await run(['issue', 'comment', '12', 'research', '--file', '-'], codex, 'findings v1\n');
+  assert.equal(first.code, 0, first.err);
+  assert.match(first.out, /Created the research comment on #12/);
+  for (let i = 0; i < 3; i++) github.comment(12, 'owner', 'chatter');
+  const second = await run(['issue', 'comment', '12', 'research', '--file', '-'], codex, 'findings v2\n');
+  assert.equal(second.code, 0, second.err);
+  assert.match(second.out, /Updated the research comment on #12/);
+  const mine = github
+    .comments(12)
+    .filter((c) => c.body.includes('devflow:comment research') && c.user.login === 'owner');
+  assert.equal(mine.length, 1);
+  assert.match(mine[0]?.body ?? '', /findings v2\n\n<sub>devflow · codex · /);
+  assert.equal(github.comments(12)[0]?.body, '<!-- devflow:comment research -->\nplanted');
+});
+
+test('without --file, issue section and issue comment print the current content for editing', async () => {
+  github.issue(12, 'Note.\n\n<!-- devflow:section plan -->\n## Plan\n\nS1\n<!-- /devflow:section plan -->\n');
+  await run(['issue', 'comment', '12', 'research', '--file', '-'], claude, '## Research\n\nF1\n');
+  const section = await run(['issue', 'section', '12', 'plan']);
+  assert.equal(section.code, 0, section.err);
+  assert.equal(section.out, '## Plan\n\nS1\n');
+  const comment = await run(['issue', 'comment', '12', 'research']);
+  assert.equal(comment.code, 0, comment.err);
+  assert.equal(comment.out, '## Research\n\nF1\n');
+  // Writing back what was read keeps a single marker and a single provenance line.
+  await run(['issue', 'comment', '12', 'research', '--file', '-'], claude, comment.out);
+  const body = github.comments(12)[0]?.body ?? '';
+  assert.equal(body.match(/devflow:comment research/g)?.length, 1);
+  assert.equal(body.match(/<sub>/g)?.length, 1);
+  const missing = await run(['issue', 'section', '12', 'spec']);
+  assert.equal(missing.code, 1);
+  assert.match(missing.err, /no spec section/);
+  assert.match((await run(['issue', 'comment', '12', 'review'])).err, /no review comment/);
+});
+
+test('issue commands pass --repo through to gh and refuse text over GitHub’s size limit', async () => {
+  github.issue(12);
+  await run(['issue', 'comment', '12', 'review', '--file', '-', '--repo', 'acme/widgets'], {}, 'ok');
+  assert.ok(github.calls.some((c) => c.args.includes('repos/acme/widgets/issues/12/comments')));
+  const big = await run(['issue', 'comment', '12', 'review', '--file', '-'], {}, 'x'.repeat(70_000));
+  assert.equal(big.code, 1);
+  assert.match(big.err, /65536/);
+});
+
+test('post leaves a data line in the time comment that history can read back', async () => {
+  github.issue(9);
+  await run(['start', 'issue-9', 'S1', '--estimate', '1h'], claude);
+  advance(20);
+  await run(['finish', 'issue-9', 'S1'], claude);
+  await run(['post', 'issue-9']);
+  const data = parseDataLine(github.comments(9)[0]?.body ?? '');
+  assert.equal(data?.steps[0]?.step, 'S1');
+  assert.equal(data?.steps[0]?.estimateMin, 60);
+});
+
+test('post --origin marks the work as fixing defects from other issues, and later posts keep it', async () => {
+  github.issue(20);
+  await run(['start', 'issue-20', 'fix'], claude);
+  await run(['finish', 'issue-20', 'fix'], claude);
+  assert.equal((await run(['post', 'issue-20', '--origin', '12,14'])).code, 0);
+  assert.deepEqual(parseDataLine(github.comments(20)[0]?.body ?? '')?.origin, [12, 14]);
+  assert.equal((await run(['post', 'issue-20'])).code, 0);
+  assert.deepEqual(parseDataLine(github.comments(20)[0]?.body ?? '')?.origin, [12, 14]);
+  assert.match((await run(['post', 'issue-20', '--origin', 'twelve'])).err, /--origin/);
+});
+
+/** Six closed issues whose time comments say build steps took 1.5 times their estimate. */
+function seedHistory(): void {
+  for (let n = 1; n <= 6; n++) {
+    github.issue(n, '', { labels: ['type:feature', 'track:full', 'stage:done'], state: 'closed' });
+    const steps = [{ step: 'S1', estimateMin: 40, activeMin: 60, finished: `2026-09-0${n}T10:00:00Z` }];
+    github.comment(n, 'owner', `<!-- devflow:comment time -->\n# Time\n\n${dataLine({ v: 1, steps })}\n`);
+  }
+  github.issue(7, '', { state: 'closed' });
+  github.comment(
+    7,
+    'stranger',
+    `<!-- devflow:comment time -->\n${dataLine({ v: 1, steps: [{ step: 'S1', estimateMin: 1, activeMin: 999, finished: '2026-09-09T10:00:00Z' }] })}`,
+  );
+  github.issue(8, '', { pr: true });
+}
+
+test('history gathers your time data from the repository’s issues and caches closed ones', async () => {
+  mkdirSync(join(root, '.git'));
+  seedHistory();
+  const result = await run(['history']);
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.out, /6 issues/);
+  assert.match(result.out, /build\s+6 steps\s+1\.50×/);
+  assert.ok(existsSync(join(root, '.agent', 'worklog', 'history.json')));
+  const json = JSON.parse((await run(['history', '--json'])).out) as { issues: Array<{ issue: number }> };
+  assert.deepEqual(json.issues.map((i) => i.issue).sort(), [1, 2, 3, 4, 5, 6]);
+  assert.match((await run(['history', '--labels', 'type:feature,track:full'])).out, /track:full: median 1h active/);
+  github.calls = [];
+  await run(['history']);
+  assert.equal(github.calls.filter((c) => c.args.some((a) => a.endsWith('/comments'))).length, 0);
+});
+
+test('forecast turns step estimates into P50 and P80 from that history, with a reference class', async () => {
+  mkdirSync(join(root, '.git'));
+  seedHistory();
+  const result = await run(['forecast', 'S1=1h', 'S2=30m', '--labels', 'type:feature,track:full']);
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.out, /S1\s+1h\s+build \(6\)\s+1h 30m\s+1h 30m/);
+  assert.match(result.out, /Total\s+1h 30m\s+2h 15m\s+2h 15m/);
+  assert.match(result.out, /type:feature, track:full: median 1h active .*6 issues/);
+  const json = JSON.parse((await run(['forecast', 'S1=1h', '--json'])).out) as {
+    forecast: { total: { p50Min: number } };
+  };
+  assert.equal(json.forecast.total.p50Min, 90);
+});
+
+test('forecast says when there is no basis yet, and rejects malformed estimates', async () => {
+  mkdirSync(join(root, '.git'));
+  github.issue(1);
+  const none = await run(['forecast', 'S1=1h']);
+  assert.equal(none.code, 0, none.err);
+  assert.match(none.out, /No basis yet/);
+  const bad = await run(['forecast', 'S1']);
+  assert.equal(bad.code, 1);
+  assert.match(bad.err, /step=estimate/);
 });

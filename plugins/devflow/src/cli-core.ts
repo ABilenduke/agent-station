@@ -2,11 +2,25 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { basename, dirname, join, resolve } from 'node:path';
 import { computeTimes } from './active.js';
 import { formatMinutes, parseEstimate } from './duration.js';
+import { GitHub, type Exec } from './github.js';
+import { collectHistory } from './collect.js';
+import {
+  allowanceRatios,
+  calibrationByKind,
+  dataLine,
+  forecast as simulate,
+  parseDataLine,
+  referenceClass,
+  seededRandom,
+  timeData,
+  type IssueRecord,
+} from './history.js';
 import { classifyHook } from './hook.js';
+import { checkKey, commentContent, stripFrontmatter, tableSteps } from './issue.js';
 import { appendEvent, readLedger, type EventName, type Harness, type LedgerEvent } from './ledger.js';
 import { renderTimeMd } from './render.js';
 import { loadBindings, saveBindings, type Binding } from './state.js';
-import { summarize } from './summary.js';
+import { quantile, summarize } from './summary.js';
 
 export interface CliDeps {
   env: Record<string, string | undefined>;
@@ -14,8 +28,8 @@ export interface CliDeps {
   stateDir: string;
   /** Where relative paths and `issue-N` refs resolve from. */
   cwd: string;
-  /** Runs an external command (`gh`) and reports how it ended. */
-  exec: (command: string, args: string[]) => { status: number; output: string };
+  /** Runs an external command (`gh`), optionally with stdin, and reports how it ended. */
+  exec: Exec;
   stdin: () => Promise<string>;
   stdout: (s: string) => void;
   stderr: (s: string) => void;
@@ -28,13 +42,20 @@ const USAGE = `Usage: worklog <command>
   finish <ledger> <step> [--note text]                      close a step and render time.md
   render <ledger>                                           regenerate time.md from time.jsonl
   check <ledger>                                            validate time.jsonl and time.md
-  post <issue-N>                                            comment time.md on GitHub issue N (gh)
+  post <issue-N> [--repo o/r] [--force] [--origin 12,14]   put time.md in issue N's time comment (gh);
+                                                            --origin: the issues whose defects this fixes
   status                                                    list open steps and bound sessions
   summary [<dir>...] [--json]                               estimate calibration (default .agent/worklog)
+  history [--labels a,b] [--repo o/r] [--json]              calibration from the repository's issues (gh)
+  forecast <step>=<estimate>... [--labels a,b] [--json]     P50/P80 for a plan's estimates from history
   hook [--harness claude-code|codex]                        record a hook event (used by hooks)
+  issue section <N> <name> [--file <path|->] [--repo o/r]   print one marked section of N's body, or
+                                                            replace or add it from the file (- is stdin)
+  issue comment <N> <key> [--file <path|->] [--repo o/r]    print your comment marked <key> on N, or
+                                                            edit or create it from the file
 
 <ledger> is a folder, or issue-N for .agent/worklog/issue-N/ at the repository root, which is
-meant to stay out of git (add .agent/ to .gitignore).
+meant to stay out of git (add .agent/ to .gitignore). Issue commands work on PR numbers too.
 `;
 
 class UsageError extends Error {}
@@ -284,9 +305,19 @@ function check(args: string[], deps: CliDeps): number {
   return 0;
 }
 
-/** Comments the rendered time.md on the issue, so the history lives in the tracker and not in git. */
+function github(flags: Map<string, string | true>, deps: CliDeps): GitHub {
+  return new GitHub(deps.exec, stringFlag(flags, 'repo'));
+}
+
+/** Names the harness and time, since a comment posted by an agent goes out under the person's account. */
+function provenance(deps: CliDeps): string {
+  return `devflow · ${detectAgent(deps.env).harness} · ${localIso(deps.now()).slice(0, 16).replace('T', ' ')}`;
+}
+
+/** Puts the rendered time.md in the issue's `time` comment, so the history lives in the tracker. */
 function post(args: string[], deps: CliDeps): number {
-  const ref = parseArgs(args).positional[0];
+  const { positional, flags } = parseArgs(args);
+  const ref = positional[0];
   const match = ref === undefined ? null : ISSUE_REF.exec(ref);
   if (!match) throw new UsageError('post needs an issue-N ref.');
   const dir = featureDir(ref, deps);
@@ -303,13 +334,187 @@ function post(args: string[], deps: CliDeps): number {
     );
     return 1;
   }
-  const content = render(dir);
-  const result = deps.exec('gh', ['issue', 'comment', match[1] ?? '', '--body-file', join(dir, 'time.md')]);
-  if (result.status !== 0) {
-    deps.stderr(`gh issue comment failed: ${result.output.trim()}\n`);
+  const issue = Number(match[1]);
+  const gh = github(flags, deps);
+  // The ledger lives on one machine; a post from a ledger that lacks steps would erase them.
+  const posted = gh.markedComment(issue, 'time');
+  const steps = new Set(events.map((e) => e.step));
+  const missing = posted ? tableSteps(posted.body).filter((step) => !steps.has(step)) : [];
+  if (missing.length > 0 && !flags.has('force')) {
+    deps.stderr(
+      `The time comment on #${issue} reports ${missing.join(', ')}, which ${dir} does not have; posting would drop them. Post from the ledger that has them, or use --force.\n`,
+    );
     return 1;
   }
-  deps.stdout(`Posted time for ${ref} (${content.split('\n').length} lines) to issue ${match[1]}.\n`);
+  const originFlag = stringFlag(flags, 'origin');
+  if (originFlag !== undefined && !/^\d+(,\d+)*$/.test(originFlag)) {
+    throw new UsageError('--origin takes issue numbers, such as 12 or 12,14.');
+  }
+  // Which issues this work fixes defects in; kept from the earlier post when not given again.
+  const origin = originFlag?.split(',').map(Number) ?? (posted && parseDataLine(posted.body)?.origin);
+  const data = { ...timeData(events), ...(origin ? { origin } : {}) };
+  const content = `${stripFrontmatter(render(dir))}\n${dataLine(data)}\n`;
+  const done = gh.upsertComment(issue, 'time', content, provenance(deps));
+  deps.stdout(`${done === 'created' ? 'Created' : 'Updated'} the time comment on #${issue}.\n`);
+  return 0;
+}
+
+function issueNumber(raw: string | undefined): number {
+  if (!raw || !/^\d+$/.test(raw)) throw new UsageError('Missing or invalid issue number.');
+  return Number(raw);
+}
+
+async function content(file: string, deps: CliDeps): Promise<string> {
+  const text = file === '-' ? await deps.stdin() : readFileSync(resolve(deps.cwd, file), 'utf8');
+  if (text.trim() === '') throw new Error('The content is empty; nothing to write.');
+  return text;
+}
+
+async function issue(args: string[], deps: CliDeps): Promise<number> {
+  const [action, ...rest] = args;
+  const { positional, flags } = parseArgs(rest);
+  const number = issueNumber(positional[0]);
+  const key = checkKey(positional[1]);
+  const file = stringFlag(flags, 'file');
+  const gh = github(flags, deps);
+  if (file === undefined && (action === 'section' || action === 'comment')) {
+    const text = action === 'section' ? gh.section(number, key) : gh.markedComment(number, key)?.body;
+    if (text === undefined || text === null) {
+      deps.stderr(`#${number} has no ${key} ${action}${action === 'comment' ? ' of yours' : ''}.\n`);
+      return 1;
+    }
+    deps.stdout(`${action === 'section' ? text : commentContent(text)}\n`);
+    return 0;
+  }
+  if (file === undefined) throw new UsageError(`Unknown issue action "${action ?? ''}"; use section or comment.`);
+  if (action === 'section') {
+    const done = gh.setSection(number, key, await content(file, deps));
+    deps.stdout(done === 'added' ? `Added section ${key} to #${number}.\n` : `Updated section ${key} on #${number}.\n`);
+    return 0;
+  }
+  if (action === 'comment') {
+    const done = gh.upsertComment(number, key, await content(file, deps), provenance(deps));
+    deps.stdout(`${done === 'created' ? 'Created' : 'Updated'} the ${key} comment on #${number}.\n`);
+    return 0;
+  }
+  throw new UsageError(`Unknown issue action "${action ?? ''}"; use section or comment.`);
+}
+
+/** The issue's ledgers on this machine, as history records (labels come from GitHub). */
+function localHistory(deps: CliDeps): IssueRecord[] {
+  const home = join(repoRoot(deps.cwd), LEDGER_HOME);
+  return ledgerFolders([home], deps.cwd).flatMap((dir) => {
+    const match = ISSUE_REF.exec(basename(dir));
+    return match
+      ? [{ issue: Number(match[1]), labels: [], steps: timeData(readLedger(ledgerPath(dir)).events).steps }]
+      : [];
+  });
+}
+
+/** Time data from the repository's issues, cached under .agent/worklog, plus this machine's ledgers. */
+function loadHistory(flags: Map<string, string | true>, deps: CliDeps): { history: IssueRecord[]; cache: string } {
+  const repo = stringFlag(flags, 'repo');
+  const name = repo === undefined ? 'history.json' : `history-${repo.replace('/', '-')}.json`;
+  const cache = join(repoRoot(deps.cwd), LEDGER_HOME, name);
+  return { history: collectHistory(github(flags, deps), cache, repo === undefined ? localHistory(deps) : []), cache };
+}
+
+const ratio = (r: number): string => `${r.toFixed(2)}×`;
+const minutes = (m: number | null): string => (m === null ? '—' : formatMinutes(m));
+
+function history(args: string[], deps: CliDeps): number {
+  const { flags } = parseArgs(args);
+  const { history: records, cache } = loadHistory(flags, deps);
+  const kinds = calibrationByKind(records);
+  const allowance = allowanceRatios(records);
+  if (flags.has('json')) {
+    deps.stdout(`${JSON.stringify({ issues: records, kinds, allowance }, null, 2)}\n`);
+    return 0;
+  }
+  deps.stdout(`${records.length} issues with time data (cache: ${cache}).\n`);
+  for (const k of kinds) {
+    deps.stdout(
+      `${k.kind.padEnd(9)} ${`${k.count} step${k.count === 1 ? '' : 's'}`.padEnd(10)} ${ratio(k.median)} actual/estimate (IQR ${ratio(k.q1)}–${ratio(k.q3)})\n`,
+    );
+  }
+  if (allowance.length > 0) {
+    const median = Math.round(quantile(allowance, 0.5) * 100);
+    deps.stdout(
+      `Unplanned QA, review fixes and bug fixes: median +${median}% of planned time (${allowance.length} issues).\n`,
+    );
+  }
+  printReference(flags, records, deps);
+  return 0;
+}
+
+function printReference(flags: Map<string, string | true>, records: IssueRecord[], deps: CliDeps): void {
+  const labels = (stringFlag(flags, 'labels') ?? '').split(',').filter(Boolean);
+  const reference = labels.length > 0 ? referenceClass(records, labels) : null;
+  if (labels.length > 0 && !reference) deps.stdout(`Fewer than 3 past issues labelled ${labels.join(', ')}.\n`);
+  if (!reference) return;
+  deps.stdout(
+    `Past issues labelled ${labels.join(', ')}: median ${formatMinutes(reference.medianActiveMin)} active (IQR ${formatMinutes(reference.q1ActiveMin)}–${formatMinutes(reference.q3ActiveMin)}, ${reference.count} issues).\n`,
+  );
+}
+
+function table(rows: string[][]): string {
+  const widths = (rows[0] ?? []).map((_, col) => Math.max(...rows.map((r) => (r[col] ?? '').length)));
+  return rows
+    .map((r) =>
+      r
+        .map((c, i) => c.padEnd(widths[i] ?? 0))
+        .join('  ')
+        .trimEnd(),
+    )
+    .join('\n');
+}
+
+function forecastCommand(args: string[], deps: CliDeps): number {
+  const { positional, flags } = parseArgs(args);
+  if (positional.length === 0) throw new UsageError('forecast needs estimates as step=estimate, such as S1=1h30m.');
+  const estimates = positional.map((arg) => {
+    const [step, estimate] = arg.split('=');
+    if (!step || !estimate) throw new UsageError(`Give "${arg}" as step=estimate, such as S1=1h30m.`);
+    return { step: stepName(step), estimateMin: parseEstimate(estimate) };
+  });
+  const labels = (stringFlag(flags, 'labels') ?? '').split(',').filter(Boolean);
+  const { history: records } = loadHistory(flags, deps);
+  const result = simulate(estimates, records, { runs: 10_000, random: seededRandom(1) });
+  const reference = labels.length > 0 ? referenceClass(records, labels) : null;
+  if (flags.has('json')) {
+    deps.stdout(`${JSON.stringify({ forecast: result, referenceClass: reference }, null, 2)}\n`);
+    return 0;
+  }
+  if (result.total.p50Min === null) {
+    deps.stdout(
+      `No basis yet: fewer than 5 finished steps with an estimate and measured time. Quote ${formatMinutes(result.total.estimateMin)} as judgement, with a range.\n`,
+    );
+    return 0;
+  }
+  const rows = [
+    ['Step', 'Estimate', 'Basis', 'P50', 'P80'],
+    ...result.steps.map((s) => [
+      s.step,
+      minutes(s.estimateMin),
+      `${s.basis} (${s.samples})`,
+      minutes(s.p50Min),
+      minutes(s.p80Min),
+    ]),
+    ['Total', minutes(result.total.estimateMin), '', minutes(result.total.p50Min), minutes(result.total.p80Min)],
+  ];
+  const a = result.withAllowance;
+  if (a) {
+    rows.push([
+      'With QA and fixes',
+      '',
+      `+${Math.round(a.medianRatio * 100)}% (${a.issues} issues)`,
+      minutes(a.p50Min),
+      minutes(a.p80Min),
+    ]);
+  }
+  deps.stdout(`P50: as likely over as under. P80: four in five finish within it.\n\n${table(rows)}\n`);
+  if (labels.length > 0) deps.stdout('\n');
+  printReference(flags, records, deps);
   return 0;
 }
 
@@ -383,6 +588,12 @@ export async function runCli(argv: string[], deps: CliDeps): Promise<number> {
         return check(args, deps);
       case 'post':
         return post(args, deps);
+      case 'issue':
+        return await issue(args, deps);
+      case 'history':
+        return history(args, deps);
+      case 'forecast':
+        return forecastCommand(args, deps);
       case 'status':
         return status(deps);
       case 'summary':
