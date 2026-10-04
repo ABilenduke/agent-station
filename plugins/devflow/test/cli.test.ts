@@ -115,6 +115,17 @@ test('finish closes the step, unbinds its sessions and writes time.md', async ()
   assert.match(result.out, /S1/);
 });
 
+test('a session still bound to another step cannot join, and keeps its binding', async () => {
+  await run(['start', feature, 'S1'], claude);
+  await run(['start', feature, 'S2'], codex);
+  const before = readFileSync(join(stateDir, 'active.json'), 'utf8');
+  const result = await run(['join', feature, 'S1'], codex);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /still on S2/);
+  assert.equal(readFileSync(join(stateDir, 'active.json'), 'utf8'), before);
+  assert.equal(ledger().filter((e) => e.event === 'join').length, 0);
+});
+
 test('a second session can join an open step', async () => {
   await run(['start', feature, 'S1'], claude);
   const result = await run(['join', feature, 'S1'], codex);

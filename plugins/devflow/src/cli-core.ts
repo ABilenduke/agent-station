@@ -132,6 +132,11 @@ function bind(deps: CliDeps, dir: string, step: string, agent: Agent, ts: string
   saveBindings(deps.stateDir, bindings);
 }
 
+/** The binding that keeps this session on a different step than `dir`/`step`, if any. */
+function busyBinding(deps: CliDeps, agent: Agent, dir: string, step: string): Binding | undefined {
+  return loadBindings(deps.stateDir).find((b) => agent.ids.includes(b.session) && !(b.dir === dir && b.step === step));
+}
+
 function start(args: string[], deps: CliDeps): number {
   const { positional, flags } = parseArgs(args);
   const dir = featureDir(positional[0]);
@@ -143,9 +148,7 @@ function start(args: string[], deps: CliDeps): number {
     deps.stderr(`${step} is already open in ${dir}; finish it before starting it again.\n`);
     return 1;
   }
-  const busy = loadBindings(deps.stateDir).find(
-    (b) => agent.ids.includes(b.session) && !(b.dir === dir && b.step === step),
-  );
+  const busy = busyBinding(deps, agent, dir, step);
   if (busy) {
     deps.stderr(`This session is still on ${busy.step} in ${busy.dir}; run worklog finish for it first.\n`);
     return 1;
@@ -177,6 +180,11 @@ function join_(args: string[], deps: CliDeps): number {
   }
   if (!openSteps(readLedger(ledgerPath(dir)).events).has(step)) {
     deps.stderr(`${step} is not open in ${dir}; use worklog start.\n`);
+    return 1;
+  }
+  const busy = busyBinding(deps, agent, dir, step);
+  if (busy) {
+    deps.stderr(`This session is still on ${busy.step} in ${busy.dir}; run worklog finish for it first.\n`);
     return 1;
   }
   const event = stepEvent(deps, 'join', step, agent, note === undefined ? {} : { note });
