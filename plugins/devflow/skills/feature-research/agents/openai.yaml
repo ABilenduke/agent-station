@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feature Research'
+  short_description: "Answer an issue's research questions with cited evidence"
+  default_prompt: 'Use $feature-research to research the questions on this issue.'
+policy:
+  allow_implicit_invocation: true

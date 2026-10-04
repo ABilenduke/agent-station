@@ -1,0 +1,26 @@
+name: Bug
+description: Something that does not behave as it should
+labels: ['bug']
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest sequence that shows it, with the version or commit.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, runtime and tool versions that matter.

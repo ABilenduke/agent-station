@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feature Review'
+  short_description: "Check delivered work against the issue's spec and close it out"
+  default_prompt: "Use $feature-review to review this issue's delivered work."
+policy:
+  allow_implicit_invocation: true

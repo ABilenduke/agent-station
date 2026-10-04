@@ -1,21 +1,46 @@
 # devflow
 
-Development workflow plugin for Claude Code and Codex:
+Development workflow plugin for Claude Code and Codex. A piece of work lives on its GitHub issue,
+from idea to merged code: the issue body is its current state, its comments are its history, and
+nothing about the process is committed.
 
-- **Skills:** `bugfix` (reproduce, find the cause, fix, verify) and `feedback` (work through PR review
-  comments, recording the outcome on the PR).
-- **`worklog`:** a time ledger that measures how long each stage and step of feature work really took,
-  and the hooks that feed it. The feature workflow skills (`feature-brief` … `feature-review`) and the
-  document contract live in the repositories that use them (for Cylinder, the parent's
-  `.agents/skills/` and `docs/features/README.md`, synced into each child). Those copies still point at
-  `docs/features/` and need updating separately.
+| Skill              | Stage    | Writes on the issue                                                  |
+| ------------------ | -------- | -------------------------------------------------------------------- |
+| `feature-brief`    | brief    | Opens or adopts the issue, picks the track, writes the brief         |
+| `feature-research` | research | The `research` comment: answers with cited evidence, go/no-go        |
+| `feature-plan`     | plan     | The spec (requirements with EARS acceptance) and the plan            |
+| `feature-execute`  | execute  | One `journal:S<n>` comment per step, on the issue's linked branch    |
+| `feature-review`   | review   | The review on request, then the close-out `retro`                    |
+| `bugfix`           | —        | Reproduce, find the cause, fix, verify; a bug issue when one is kept |
+| `feedback`         | —        | Works through PR review comments; one summary comment on the PR      |
 
-- Time ledger contract: [contract/time-ledger.md](contract/time-ledger.md)
+Tracks keep small work light: `quick` skips research and the plan, `standard` skips research, and
+`full` runs every stage. The contract the feature skills share is
+[contract/feature-workflow.md](contract/feature-workflow.md); each skill carries a copy
+(`npm run sync:contract`, checked by the tests). `station init` with devflow adds issue forms, a PR
+template and `.agent/` in `.gitignore` to a project, from [scaffold/](scaffold).
 
-`worklog` never reads Claude Code or Codex transcripts. It writes its own ledger, `time.jsonl`, into
-a ledger folder you name, normally `.agent/worklog/issue-N/` (`worklog start issue-N <step>`), which
-stays out of git. `worklog post issue-N` comments the rendered `time.md` on the GitHub issue, so
-the history lives in the tracker.
+## worklog
+
+`worklog` measures how long each stage and step really took, keeps that on the issue, and turns it
+into forecasts. It never reads Claude Code or Codex transcripts; the time ledger contract is
+[contract/time-ledger.md](contract/time-ledger.md).
+
+- **Time:** `worklog start issue-N <step>` and `worklog finish issue-N <step>` write the ledger,
+  `.agent/worklog/issue-N/time.jsonl`, which stays out of git. `worklog post issue-N` keeps the
+  rendered table in one `time` comment on the issue, with a hidden data line for history. It refuses
+  to replace a comment that reports steps the local ledger lacks. `--origin 12` marks a bug fix's
+  time as caused by #12.
+- **Issue records:** `worklog issue section <N> <name>` and `worklog issue comment <N> <key>` print,
+  or with `--file` write, one part of an issue without touching the rest. A section is the text
+  between `<!-- devflow:section NAME -->` markers in the body; a comment is the one your account
+  posted that opens with `<!-- devflow:comment KEY -->`. Comments by anyone else never match. Both
+  go through `gh api` and work on pull requests.
+- **Estimates:** `worklog history` reads every issue's `time` comment (cached for closed issues in
+  `.agent/worklog/history.json`) and reports actual/estimate by kind of step, plus the unplanned QA,
+  review-fix and bug-fix time on top of plans. `worklog forecast S1=1h30m S2=45m` (with
+  `--labels type:feature,track:full`) gives each step's P50 and P80, a Monte Carlo total with and
+  without that allowance, and how long comparable past issues took.
 
 ## Install
 

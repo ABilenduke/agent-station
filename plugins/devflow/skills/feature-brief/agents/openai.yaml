@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feature Brief'
+  short_description: 'Open and frame a piece of work on its GitHub issue'
+  default_prompt: 'Use $feature-brief to open the issue for this and write its brief.'
+policy:
+  allow_implicit_invocation: true

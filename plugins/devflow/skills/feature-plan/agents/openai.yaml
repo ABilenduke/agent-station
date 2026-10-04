@@ -1,0 +1,6 @@
+interface:
+  display_name: 'Feature Plan'
+  short_description: 'Write the spec and plan on a GitHub issue'
+  default_prompt: 'Use $feature-plan to write the spec and plan for this issue.'
+policy:
+  allow_implicit_invocation: true

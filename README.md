@@ -9,11 +9,11 @@ copy.
 
 ## Plugins
 
-| Plugin     | Skills                          | Also                                                    |
-| ---------- | ------------------------------- | ------------------------------------------------------- |
-| `devflow`  | `bugfix`, `feedback`            | `worklog` CLI and time-ledger hooks for feature steps   |
-| `research` | `research-memory`, `notebooklm` | `obsidian-vault` MCP server                             |
-| `frontend` | `frontend-craft`                |                                                         |
+| Plugin     | Skills                                                                             | Also                                                                                |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `devflow`  | `feature-brief`, `-research`, `-plan`, `-execute`, `-review`; `bugfix`, `feedback` | `worklog` CLI (time, issue records, forecasts); project issue forms and PR template |
+| `research` | `research-memory`, `notebooklm`                                                    | `obsidian-vault` MCP server                                                         |
+| `frontend` | `frontend-craft`                                                                   |                                                                                     |
 
 Profiles in [`profiles.json`](profiles.json) group these with plugins from other marketplaces:
 
@@ -64,7 +64,10 @@ This writes, and you commit:
   lists only the `agent-station` plugins, since Copilot CLI cannot read other marketplaces;
 - `.codex/config.toml`: switches the plugins on for this project once Codex trusts it;
 - `AGENTS.md` if it is missing, and a `CLAUDE.md` containing `@AGENTS.md`, so all tools share one
-  set of project instructions. A project that already has its own `CLAUDE.md` is left alone.
+  set of project instructions. A project that already has its own `CLAUDE.md` is left alone;
+- the files each plugin offers new projects from its `scaffold/` folder, only those the project does
+  not have yet. devflow adds feature, spike and bug issue forms, a PR template, and `.agent/` to
+  `.gitignore` (merged, never replaced).
 
 Codex has no per-project install, so `init` also installs the plugins for your user. Plugins it
 installs for the first time, unless they are in the `base` profile, are switched off everywhere

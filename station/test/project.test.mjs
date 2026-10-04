@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { mergeClaudeSettings, setCodexPlugins, ensureInstructions } from '../lib/project.mjs';
+import { mergeClaudeSettings, setCodexPlugins, ensureInstructions, planScaffold } from '../lib/project.mjs';
 import { tempDir, writeTree } from './helpers.mjs';
 
 const sources = {
@@ -107,4 +107,71 @@ test('setCodexPlugins refuses forms it cannot edit safely instead of writing a d
   }
   const subtable = '[plugins."a@m"]\nenabled = true\n\n[plugins."a@m".settings]\nx = 1\n# "a@m" is great\n';
   assert.equal(setCodexPlugins(subtable, ['a@m'], false), subtable.replace('enabled = true', 'enabled = false'));
+});
+
+function scaffoldPlugin() {
+  return writeTree(tempDir('station-plugin-'), {
+    'scaffold/.github/ISSUE_TEMPLATE/feature.yml': 'name: Feature\n',
+    'scaffold/.github/pull_request_template.md': 'Closes #\n',
+    'scaffold/.gitignore': '# Agent working files.\n.agent/\n',
+  });
+}
+
+test('planScaffold offers each scaffold file the project lacks and merges .gitignore rules', () => {
+  const project = tempDir();
+  const files = planScaffold(project, [scaffoldPlugin()]);
+  assert.deepEqual(
+    files.map((f) => [f.name, f.text]),
+    [
+      ['.github/ISSUE_TEMPLATE/feature.yml', 'name: Feature\n'],
+      ['.github/pull_request_template.md', 'Closes #\n'],
+      ['.gitignore', '# Agent working files.\n.agent/\n'],
+    ],
+  );
+  assert.equal(files[0].path, join(project, '.github/ISSUE_TEMPLATE/feature.yml'));
+});
+
+test('planScaffold never replaces a project file and appends only missing .gitignore rules', () => {
+  const project = writeTree(tempDir(), {
+    '.github/ISSUE_TEMPLATE/feature.yml': 'mine\n',
+    '.gitignore': 'node_modules\r\n',
+  });
+  const files = planScaffold(project, [scaffoldPlugin()]);
+  assert.deepEqual(
+    files.map((f) => [f.name, f.text]),
+    [
+      ['.github/pull_request_template.md', 'Closes #\n'],
+      ['.gitignore', 'node_modules\r\n\r\n# Agent working files.\r\n.agent/\r\n'],
+    ],
+  );
+  writeTree(project, { '.gitignore': 'node_modules\n.agent/\n' });
+  assert.deepEqual(
+    planScaffold(project, [scaffoldPlugin()]).map((f) => f.name),
+    ['.github/pull_request_template.md'],
+  );
+});
+
+test('planScaffold skips the PR template when the project keeps one anywhere GitHub looks', () => {
+  for (const existing of [
+    'PULL_REQUEST_TEMPLATE.md',
+    'docs/pull_request_template.md',
+    '.github/PULL_REQUEST_TEMPLATE/x.md',
+  ]) {
+    const project = writeTree(tempDir(), { [existing]: 'theirs\n' });
+    const names = planScaffold(project, [scaffoldPlugin()]).map((f) => f.name);
+    assert.ok(!names.includes('.github/pull_request_template.md'), existing);
+  }
+});
+
+test('planScaffold ignores plugins without a scaffold folder', () => {
+  assert.deepEqual(planScaffold(tempDir(), [tempDir('station-plugin-'), null]), []);
+});
+
+test('planScaffold merges every plugin’s .gitignore rules into one change', () => {
+  const project = writeTree(tempDir(), { '.gitignore': 'node_modules\n' });
+  const first = writeTree(tempDir('station-plugin-'), { 'scaffold/.gitignore': '.agent/\n' });
+  const second = writeTree(tempDir('station-plugin-'), { 'scaffold/.gitignore': '.cache/\n.agent/\n' });
+  const files = planScaffold(project, [first, second]).filter((f) => f.name === '.gitignore');
+  assert.equal(files.length, 1);
+  assert.equal(files[0].text, 'node_modules\n\n.agent/\n\n.cache/\n');
 });

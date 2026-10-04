@@ -14,6 +14,14 @@ Keep these fields concise:
 - **Correction:** Files and behavior changed, relevant compatibility constraints.
 - **Verification:** Actual checks and results, baseline failures, limitations, and next action.
 
+When the record is a GitHub issue B, find or open it before fixing so the work can be timed. With
+`worklog` on the `PATH`, time it as step `fix`: `worklog start issue-B fix` before the work,
+`worklog finish issue-B fix` and `worklog post issue-B` after. When the cause traces back to the
+change made for another issue N (the commit or PR that introduced it, found with `git log` or
+`git blame`), write "Caused by #N in `<commit>`" under Cause and post with
+`worklog post issue-B --origin N`. The fix's time then counts against that work when later estimates
+are forecast. An origin is evidence, not blame; record it only when the causal path shows it.
+
 On resumption, read the existing record where it lives (the issue and its comments, the file, or the
 chat), then reconcile its report with the current code, working tree/index, and tests before acting.
 Replace stale current-state claims in place (for an issue, edit its body) and retain consequential
