@@ -86,7 +86,10 @@ there are enough of them. Mention it when the appetite sits below their lower qu
   research question, not a fact.
 - Research questions: five to eight on the full track, each with one track (`code`, `technical`,
   `market` or `business`) and the plan decision its answer changes. The standard track keeps only
-  `code` questions; the quick track has none and lists acceptance checks instead.
+  `code` questions.
+- The quick track has no research questions and no separate plan. The brief ends with
+  `**Acceptance:**` (EARS sentences: its spec), `**S1:** <the change> · Estimate … · Basis …` (its
+  plan) and, once the user agrees, `**Approved:** @<user> <date>`.
 - One page. The investigation belongs to research, not here.
 
 ## 6. Close the stage

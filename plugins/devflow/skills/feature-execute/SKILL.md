@@ -18,8 +18,10 @@ first; it is the contract for the issue, and the repository's `AGENTS.md` wins o
 2. Read the repository guidance and the code and tests the steps touch. Discover the real stack and
    check commands; never assume them.
 3. In plan mode, or when the user asked for no writes, assess readiness only and write nothing.
-4. The plan's Definition of Ready must be ticked, including the approval line, and the user must
-   have asked to execute. With an unticked item, only discovery steps may run.
+4. **Ready to execute**, by track. On `standard` and `full`, the plan's Definition of Ready is
+   ticked, approval line included. On `quick`, the brief holds its acceptance checks, step S1 with
+   an estimate, and the user's approval line. Either way the user must have asked to execute; until
+   then, only discovery steps may run.
 5. **Branch:** the issue's branch. Before a PR exists, `gh issue develop --list N` lists it; once a
    PR is open, GitHub lists the PR instead (`gh issue view N --json closedByPullRequestsReferences`)
    and the branch is its head (`gh pr view <pr> --json headRefName`). With neither, create one with
