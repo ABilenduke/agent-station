@@ -17,6 +17,8 @@ beforeEach(() => {
   mkdirSync(feature, { recursive: true });
   stateDir = join(root, 'state');
   clock = Date.parse('2026-10-05T09:00:00-04:00');
+  execCalls = [];
+  execStatus = 0;
 });
 
 interface Run {
@@ -25,6 +27,9 @@ interface Run {
   err: string;
 }
 
+let execCalls: Array<{ command: string; args: string[] }>;
+let execStatus: number;
+
 async function run(argv: string[], env: Record<string, string> = {}, stdin = ''): Promise<Run> {
   let out = '';
   let err = '';
@@ -32,6 +37,11 @@ async function run(argv: string[], env: Record<string, string> = {}, stdin = '')
     env,
     now: () => new Date(clock),
     stateDir,
+    cwd: root,
+    exec: (command, args) => {
+      execCalls.push({ command, args });
+      return { status: execStatus, output: execStatus === 0 ? '' : 'no auth' };
+    },
     stdin: async () => stdin,
     stdout: (s) => {
       out += s;
@@ -213,4 +223,52 @@ test('unknown commands print usage and fail', async () => {
   const result = await run(['frobnicate']);
   assert.equal(result.code, 1);
   assert.match(result.err, /usage/i);
+});
+
+test('an issue-N ledger lives under .agent/worklog at the repository root, outside the code', async () => {
+  mkdirSync(join(root, '.git'));
+  const result = await run(['start', 'issue-9', 'S1'], claude);
+  assert.equal(result.code, 0, result.err);
+  assert.ok(existsSync(join(root, '.agent', 'worklog', 'issue-9', 'time.jsonl')));
+  assert.equal((await run(['finish', 'issue-9', 'S1'], claude)).code, 0);
+  assert.ok(existsSync(join(root, '.agent', 'worklog', 'issue-9', 'time.md')));
+});
+
+test('an issue-N ledger that was never started is reported, not created', async () => {
+  const result = await run(['finish', 'issue-9', 'S1'], claude);
+  assert.equal(result.code, 1);
+  assert.match(result.err, /No ledger for issue-9/);
+  assert.equal(existsSync(join(root, '.agent')), false);
+});
+
+test('post comments the rendered time.md on the issue with gh', async () => {
+  await run(['start', 'issue-9', 'S1'], claude);
+  await run(['finish', 'issue-9', 'S1'], claude);
+  const result = await run(['post', 'issue-9']);
+  assert.equal(result.code, 0, result.err);
+  const [call] = execCalls;
+  assert.equal(call?.command, 'gh');
+  assert.deepEqual(call?.args.slice(0, 3), ['issue', 'comment', '9']);
+  assert.equal(call?.args[3], '--body-file');
+  assert.equal(call?.args[4], join(root, '.agent', 'worklog', 'issue-9', 'time.md'));
+});
+
+test('post fails clearly when gh fails, and only accepts issue-N refs', async () => {
+  await run(['start', 'issue-9', 'S1'], claude);
+  execStatus = 1;
+  const failed = await run(['post', 'issue-9']);
+  assert.equal(failed.code, 1);
+  assert.match(failed.err, /gh issue comment failed: no auth/);
+  const folder = await run(['post', feature]);
+  assert.equal(folder.code, 1);
+  assert.match(folder.err, /issue-N/);
+});
+
+test('summary reads .agent/worklog when no folder is given', async () => {
+  await run(['start', 'issue-9', 'S1', '--estimate', '1h'], claude);
+  advance(30);
+  await run(['finish', 'issue-9', 'S1'], claude);
+  const result = await run(['summary']);
+  assert.equal(result.code, 0, result.err);
+  assert.match(result.out, /issue-9/);
 });

@@ -3,16 +3,19 @@
 Development workflow plugin for Claude Code and Codex:
 
 - **Skills:** `bugfix` (reproduce, find the cause, fix, verify) and `feedback` (work through PR review
-  comments with an append-only record).
+  comments, recording the outcome on the PR).
 - **`worklog`:** a time ledger that measures how long each stage and step of feature work really took,
   and the hooks that feed it. The feature workflow skills (`feature-brief` … `feature-review`) and the
   document contract live in the repositories that use them (for Cylinder, the parent's
-  `.agents/skills/` and `docs/features/README.md`, synced into each child).
+  `.agents/skills/` and `docs/features/README.md`, synced into each child). Those copies still point at
+  `docs/features/` and need updating separately.
 
 - Time ledger contract: [contract/time-ledger.md](contract/time-ledger.md)
 
 `worklog` never reads Claude Code or Codex transcripts. It writes its own ledger, `time.jsonl`, into
-the feature folder, where it is committed with the other documents.
+a ledger folder you name, normally `.agent/worklog/issue-N/` (`worklog start issue-N <step>`), which
+stays out of git. `worklog post issue-N` comments the rendered `time.md` on the GitHub issue, so
+the history lives in the tracker.
 
 ## Install
 
@@ -33,8 +36,8 @@ npm run build   # after changing src/: dist/ is committed because plugin install
 
 ## How time is measured
 
-`worklog start <folder> <step> --estimate 1h30m` stamps the start and binds the current Claude Code
-or Codex session; `worklog finish <folder> <step>` stamps the end and renders `time.md`. While a step
+`worklog start <ledger> <step> --estimate 1h30m` stamps the start and binds the current Claude Code
+or Codex session; `worklog finish <ledger> <step>` stamps the end and renders `time.md`. While a step
 is open, the hooks append activity events (prompt, stop, tool, wait) carrying only a timestamp,
 step, session and harness. Active time counts agent turns plus up to 5 minutes of each wait for a
 person, with no single gap counting more than 30 minutes; see the ledger contract. Session bindings

@@ -1,6 +1,8 @@
 # Time ledger contract (`time.jsonl`)
 
-Version 1, 2026-10-01. `worklog` is the only writer. Every line is one JSON object; lines are only
+Version 1, 2026-10-01. A ledger is a folder holding `time.jsonl` and the rendered `time.md`; by
+convention `.agent/worklog/issue-N/` at the repository root, kept out of git, with `time.md` posted
+on the issue at the end. `worklog` is the only writer. Every line is one JSON object; lines are only
 ever appended. Nothing here comes from Claude Code or Codex transcripts.
 
 ## Fields
