@@ -58,9 +58,13 @@ export function timeData(events: LedgerEvent[]): TimeData {
   };
 }
 
-/** One HTML comment line holding the data, invisible on GitHub and read back by `parseDataLine`. */
+/**
+ * One HTML comment line holding the data, invisible on GitHub and read back by `parseDataLine`.
+ * `<` and `>` are escaped (JSON allows `\u003c`), so no step label can close the comment early.
+ */
 export function dataLine(data: TimeData): string {
-  return `<!-- devflow:time-data ${JSON.stringify(data)} -->`;
+  const json = JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+  return `<!-- devflow:time-data ${json} -->`;
 }
 
 export function parseDataLine(body: string): TimeData | null {

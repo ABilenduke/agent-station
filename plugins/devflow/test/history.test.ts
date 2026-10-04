@@ -218,3 +218,10 @@ test('only completed issues count as past issues; open work still lends its fini
   assert.equal(result.withAllowance?.issues, 3);
   assert.equal(result.steps[0]?.samples, 7);
 });
+
+test('the data line keeps any step label inside its HTML comment, even one holding } or -->', () => {
+  const data = { v: 1 as const, steps: [{ step: 'odd} --> <b>', estimateMin: 5, activeMin: 5, finished: null }] };
+  const line = dataLine(data);
+  assert.equal(line.indexOf('-->'), line.length - 3);
+  assert.deepEqual(parseDataLine(`before\n${line}\nafter -->`), data);
+});
