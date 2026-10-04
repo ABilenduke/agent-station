@@ -38,7 +38,8 @@ node station/station.mjs install
 `install` is safe to re-run. It:
 
 - adds this checkout as the `agent-station` marketplace in Claude Code, Codex and Copilot CLI (each
-  one that is installed), and installs the `base` profile in each;
+  one that is installed), and installs the `base` profile in each. Copilot CLI gets only the
+  profile's `agent-station` plugins, not ones from other marketplaces such as `context7`;
 - links `~/.local/bin/station` and `~/.local/bin/worklog`;
 - points every tool at one global instructions file, [`global/AGENTS.md`](global/AGENTS.md):
   `~/.codex/AGENTS.md`, `~/.copilot/copilot-instructions.md` and `~/.gemini/GEMINI.md` link to it and `~/.claude/CLAUDE.md` imports it;
@@ -59,7 +60,8 @@ This writes, and you commit:
 
 - `.claude/settings.json`: enables the plugins and declares their marketplaces, so Claude Code
   offers to install them for anyone who opens the project;
-- `.github/copilot/settings.json`: the same, for Copilot CLI, which installs the plugins itself;
+- `.github/copilot/settings.json`: the same, for Copilot CLI, which installs the plugins itself. It
+  lists only the `agent-station` plugins, since Copilot CLI cannot read other marketplaces;
 - `.codex/config.toml`: switches the plugins on for this project once Codex trusts it;
 - `AGENTS.md` if it is missing, and a `CLAUDE.md` containing `@AGENTS.md`, so all tools share one
   set of project instructions. A project that already has its own `CLAUDE.md` is left alone.
