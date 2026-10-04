@@ -1,5 +1,5 @@
-import { existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { marketplaceOf } from './catalog.mjs';
 
 /**
@@ -61,19 +61,44 @@ through CLAUDE.md.
 `;
 
 /**
- * Gives the project one instructions file for every tool: AGENTS.md, imported by CLAUDE.md. A
- * project that already has only a CLAUDE.md is left for a person to reconcile. Returns created files.
+ * The instruction files a project is missing: AGENTS.md, imported by CLAUDE.md. A project that
+ * already has only a CLAUDE.md is left for a person to reconcile. Returns `{ name, path, text }`.
  */
-export function ensureInstructions(dir) {
+export function planInstructions(dir) {
   const agents = join(dir, 'AGENTS.md');
   const claude = join(dir, 'CLAUDE.md');
-  const created = [];
-  if (existsSync(claude)) return created;
-  if (!existsSync(agents)) {
-    writeFileSync(agents, AGENTS_MD);
-    created.push('AGENTS.md');
+  const files = [];
+  if (existsSync(claude)) return files;
+  if (!existsSync(agents)) files.push({ name: 'AGENTS.md', path: agents, text: AGENTS_MD });
+  files.push({ name: 'CLAUDE.md', path: claude, text: '@AGENTS.md\n' });
+  return files;
+}
+
+/**
+ * Writes every `{ path, text }` or none: when a write fails, files already written are put back as
+ * they were (or removed if they did not exist) and the error is rethrown.
+ */
+export function writeAll(files) {
+  const done = [];
+  try {
+    for (const { path, text } of files) {
+      const before = existsSync(path) ? readFileSync(path) : null;
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+      done.push({ path, before });
+    }
+  } catch (error) {
+    for (const { path, before } of done.reverse()) {
+      if (before === null) rmSync(path, { force: true });
+      else writeFileSync(path, before);
+    }
+    throw error;
   }
-  writeFileSync(claude, '@AGENTS.md\n');
-  created.push('CLAUDE.md');
-  return created;
+}
+
+/** Creates the files `planInstructions` lists and returns their names. */
+export function ensureInstructions(dir) {
+  const files = planInstructions(dir);
+  writeAll(files);
+  return files.map((f) => f.name);
 }

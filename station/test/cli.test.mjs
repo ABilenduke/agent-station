@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { main } from '../lib/cli.mjs';
 import { fakeTools, sampleRepo, tempDir, writeTree } from './helpers.mjs';
@@ -122,6 +122,18 @@ test('init writes nothing when a project file cannot be edited safely', async ()
   assert.equal(result.code, 1);
   assert.match(result.err, /by hand/);
   assert.equal(existsSync(join(project, '.claude/settings.json')), false);
+  assert.equal(existsSync(join(project, 'AGENTS.md')), false);
+});
+
+test('init puts back the files it wrote when a later project file fails', async () => {
+  const { project, run } = setup();
+  const settings = '{"permissions":{"allow":["Bash(ls)"]}}\n';
+  writeTree(project, { '.claude/settings.json': settings });
+  symlinkSync(join(project, 'missing/CLAUDE.md'), join(project, 'CLAUDE.md'));
+  const result = await run('init', 'base', '--no-codex');
+  assert.equal(result.code, 1);
+  assert.equal(readFileSync(join(project, '.claude/settings.json'), 'utf8'), settings);
+  assert.equal(existsSync(join(project, '.codex/config.toml')), false);
   assert.equal(existsSync(join(project, 'AGENTS.md')), false);
 });
 

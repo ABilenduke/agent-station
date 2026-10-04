@@ -1,10 +1,10 @@
 import { isDeepStrictEqual } from 'node:util';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve as resolvePath } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve as resolvePath } from 'node:path';
 import { loadCatalog, pluginContents, readJson, resolve } from './catalog.mjs';
 import { doctor } from './doctor.mjs';
 import { ensureCodexPlugins, install, update } from './machine.mjs';
-import { ensureInstructions, mergeClaudeSettings, setCodexPlugins } from './project.mjs';
+import { mergeClaudeSettings, planInstructions, setCodexPlugins, writeAll } from './project.mjs';
 import { validate } from './validate.mjs';
 
 const USAGE = `Usage: station <command>
@@ -55,16 +55,10 @@ function print(deps, lines) {
   for (const line of lines) deps.stdout(`${line}\n`);
 }
 
-function writeIfChanged(path, text) {
-  if (existsSync(path) && readFileSync(path, 'utf8') === text) return false;
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text);
-  return true;
-}
-
 /**
  * Works out every project file first, so a file that cannot be edited safely or a plugin Codex
- * cannot install stops init before anything in the project changes.
+ * cannot install stops init before anything in the project changes, and if a write still fails
+ * the files already written are restored.
  */
 function init(catalog, { positional, flags }, deps) {
   if (positional.length === 0) throw new UsageError('init needs at least one profile or plugin');
@@ -79,13 +73,16 @@ function init(catalog, { positional, flags }, deps) {
   const codexNext = setCodexPlugins(codex, ids, true);
   const codexLines = flags['no-codex'] ? [] : ensureCodexPlugins(catalog, deps, ids);
 
-  const written = [];
+  const changes = [];
   if (!existsSync(settingsPath) || !isDeepStrictEqual(settings, merged)) {
-    writeIfChanged(settingsPath, `${JSON.stringify(merged, null, 2)}\n`);
-    written.push('.claude/settings.json');
+    changes.push({ name: '.claude/settings.json', path: settingsPath, text: `${JSON.stringify(merged, null, 2)}\n` });
   }
-  if (writeIfChanged(codexPath, codexNext)) written.push('.codex/config.toml');
-  written.push(...ensureInstructions(dir));
+  if (!existsSync(codexPath) || readFileSync(codexPath, 'utf8') !== codexNext) {
+    changes.push({ name: '.codex/config.toml', path: codexPath, text: codexNext });
+  }
+  changes.push(...planInstructions(dir));
+  writeAll(changes);
+  const written = changes.map((f) => f.name);
 
   deps.stdout(`${dir}: ${ids.join(', ')}\n`);
   print(deps, written.length > 0 ? written.map((f) => `wrote ${f}`) : ['already set up']);
