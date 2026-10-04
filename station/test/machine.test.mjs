@@ -59,7 +59,7 @@ test('install skips Gemini when it is not set up, and a tool that is not install
 });
 
 test('install backs up files it replaces and leaves its own earlier work alone', () => {
-  const { home, tools, deps, catalog } = machine();
+  const { home, tools, deps, catalog } = machine({ copilot: {} });
   mkdirSync(join(home, '.claude'), { recursive: true });
   writeFileSync(join(home, '.claude/CLAUDE.md'), '# old notes\n');
   install(catalog, deps);
@@ -68,7 +68,7 @@ test('install backs up files it replaces and leaves its own earlier work alone',
   const again = install(catalog, deps);
   assert.deepEqual(writes(tools.calls.slice(before)), [], 'no tool changes on a second run');
   assert.deepEqual(
-    again.filter((l) => !l.startsWith('ok')),
+    again.filter((l) => !l.startsWith('ok') && !l.startsWith('copilot: skipped')),
     ['secrets: add `set -a; . ~/.config/agent-station/secrets.env; set +a` to ~/.bashrc'],
   );
 });
@@ -222,4 +222,59 @@ test('a failed install during init leaves the plugins it did install off outside
     readFileSync(join(codexHome, 'config.toml'), 'utf8'),
     /\[plugins\."research@agent-station"\]\nenabled = false/,
   );
+});
+
+test('install adds Copilot CLI too: marketplaces, the install profile and the global instructions', () => {
+  const { repo, home, tools, deps, catalog } = machine({ copilot: {} });
+  install(catalog, deps);
+  assert.deepEqual(
+    writes(tools.calls).filter((c) => c.startsWith('copilot')),
+    [`copilot plugin marketplace add ${repo}`, 'copilot plugin install devflow@agent-station'],
+  );
+  assert.equal(readlinkSync(join(home, '.copilot/copilot-instructions.md')), join(repo, 'global/AGENTS.md'));
+});
+
+test('install skips plugins from other marketplaces in Copilot CLI, which cannot read them', () => {
+  const { tools, deps, catalog } = machine({ copilot: {} });
+  const lines = install(catalog, deps);
+  assert.ok(lines.includes('copilot: skipped context7@claude-plugins-official (it only installs from agent-station)'));
+  assert.equal(tools.calls.filter((c) => c.includes('claude-plugins-official') && c.startsWith('copilot')).length, 0);
+});
+
+test('install treats a live Copilot plugin that is listed but disabled as not installed', () => {
+  const { tools, deps, catalog } = machine({ copilot: { marketplaces: ['agent-station'] } });
+  install(catalog, deps);
+  assert.deepEqual(
+    writes(tools.calls).filter((c) => c.startsWith('copilot')),
+    ['copilot plugin install devflow@agent-station'],
+  );
+});
+
+test('install keeps Copilot instructions under COPILOT_HOME and skips Copilot when it is missing', () => {
+  const { home, tools, deps, catalog } = machine({ copilot: {} });
+  deps.env = { COPILOT_HOME: join(home, 'elsewhere') };
+  install(catalog, deps);
+  assert.ok(lstatSync(join(home, 'elsewhere/copilot-instructions.md')).isSymbolicLink());
+  const absent = machine();
+  const lines = install(absent.catalog, absent.deps);
+  assert.ok(lines.includes('copilot: not installed, skipped'), lines.join('\n'));
+  assert.equal(existsSync(join(absent.home, '.copilot')), false);
+  assert.ok(tools.calls.length > 0);
+});
+
+test('update refreshes the marketplace catalog in Copilot CLI', () => {
+  const { tools, deps, catalog } = machine({ copilot: { marketplaces: ['agent-station'] } });
+  update(catalog, deps);
+  assert.ok(tools.calls.includes('copilot plugin marketplace update agent-station'), tools.calls.join('\n'));
+});
+
+test("Copilot commands run from the home directory so a project's .github/copilot/settings.json cannot leak in", () => {
+  const { home, tools, deps, catalog } = machine({ copilot: {} });
+  install(catalog, deps);
+  update(catalog, deps);
+  const copilot = Object.entries(tools.cwds).filter(([c]) => c.startsWith('copilot'));
+  assert.ok(copilot.length >= 4, 'install and update both ran Copilot commands');
+  assert.deepEqual([...new Set(copilot.map(([, cwd]) => cwd))], [home]);
+  assert.equal(tools.cwds['copilot plugin marketplace list --json'], home);
+  assert.equal(tools.cwds['copilot plugin list --json'], home);
 });

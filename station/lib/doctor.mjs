@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { marketplaceOf, pluginContents } from './catalog.mjs';
-import { available, claudeHome, codexHome, SECRETS, tilde, TOOLS } from './machine.mjs';
+import { available, claudeHome, codexHome, copilotHome, SECRETS, TOOL_NAMES, tilde, TOOLS } from './machine.mjs';
 
 /** Names of settings, headers and query parameters that hold a secret; NAMES_A_SECRET only points at one. */
 const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|BEARER|CREDENTIAL/i;
@@ -48,6 +48,7 @@ function duplicateSkills(catalog, deps, installed, finding) {
   const seen = {
     claude: skillsIn(deps, join(claudeHome(deps), 'skills')),
     codex: [...skillsIn(deps, join(deps.home, '.agents/skills')), ...skillsIn(deps, join(codexHome(deps), 'skills'))],
+    copilot: skillsIn(deps, join(copilotHome(deps), 'skills')),
   };
   for (const [tool, ids] of Object.entries(installed)) {
     for (const id of ids.filter((i) => marketplaceOf(i) === catalog.name)) {
@@ -181,7 +182,7 @@ export function doctor(catalog, deps) {
   const findings = [];
   const finding = (ok, message) => findings.push({ ok, message });
   const installed = {};
-  for (const tool of ['claude', 'codex']) {
+  for (const tool of TOOL_NAMES) {
     if (!available(deps, tool)) {
       finding(true, `${tool}: not installed`);
       continue;
