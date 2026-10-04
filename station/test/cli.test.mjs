@@ -58,6 +58,23 @@ test('init sets a project up for Claude Code and Codex from a profile', async ()
   assert.match(result.out, /\.claude\/settings\.json/);
 });
 
+test("init adds the files a plugin scaffolds, only for plugins it enables, and keeps the project's own", async () => {
+  const { repo, project, run } = setup();
+  writeTree(repo, {
+    'plugins/devflow/scaffold/.github/ISSUE_TEMPLATE/feature.yml': 'name: Feature\n',
+    'plugins/devflow/scaffold/.gitignore': '.agent/\n',
+    'plugins/research/scaffold/research.md': 'not wanted\n',
+  });
+  writeTree(project, { '.gitignore': 'node_modules\n' });
+  const result = await run('init', 'devflow', '--no-codex');
+  assert.equal(result.code, 0, result.err);
+  assert.equal(readFileSync(join(project, '.github/ISSUE_TEMPLATE/feature.yml'), 'utf8'), 'name: Feature\n');
+  assert.equal(readFileSync(join(project, '.gitignore'), 'utf8'), 'node_modules\n\n.agent/\n');
+  assert.equal(existsSync(join(project, 'research.md')), false);
+  assert.match(result.out, /wrote \.github\/ISSUE_TEMPLATE\/feature\.yml/);
+  assert.match((await run('init', 'devflow', '--no-codex')).out, /already set up/);
+});
+
 test('init also enables the plugins for Copilot CLI in the repository settings', async () => {
   const { project, run } = setup();
   const result = await run('init', 'web', '--no-codex');

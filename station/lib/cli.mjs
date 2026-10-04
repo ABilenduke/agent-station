@@ -4,7 +4,7 @@ import { join, resolve as resolvePath } from 'node:path';
 import { loadCatalog, marketplaceOf, pluginContents, readJson, resolve } from './catalog.mjs';
 import { doctor } from './doctor.mjs';
 import { ensureCodexPlugins, install, update } from './machine.mjs';
-import { mergeClaudeSettings, planInstructions, setCodexPlugins, writeAll } from './project.mjs';
+import { mergeClaudeSettings, planInstructions, planScaffold, setCodexPlugins, writeAll } from './project.mjs';
 import { validate } from './validate.mjs';
 
 const USAGE = `Usage: station <command>
@@ -93,6 +93,8 @@ function init(catalog, { positional, flags }, deps) {
   if (!existsSync(codexPath) || readFileSync(codexPath, 'utf8') !== codexNext) {
     changes.push({ name: '.codex/config.toml', path: codexPath, text: codexNext });
   }
+  const pluginDirs = catalog.plugins.filter((p) => ids.includes(`${p.name}@${catalog.name}`)).map((p) => p.dir);
+  changes.push(...planScaffold(dir, pluginDirs));
   changes.push(...planInstructions(dir));
   writeAll(changes);
   const written = changes.map((f) => f.name);

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { marketplaceOf } from './catalog.mjs';
 
@@ -71,6 +71,79 @@ export function planInstructions(dir) {
   if (existsSync(claude)) return files;
   if (!existsSync(agents)) files.push({ name: 'AGENTS.md', path: agents, text: AGENTS_MD });
   files.push({ name: 'CLAUDE.md', path: claude, text: '@AGENTS.md\n' });
+  return files;
+}
+
+/** Every file under `dir`, as paths relative to it. */
+function filesUnder(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? filesUnder(join(dir, e.name)).map((f) => join(e.name, f)) : [e.name],
+  );
+}
+
+/** Whether `dir` holds `relPath`, matching each part case-insensitively as GitHub does. */
+function hasPath(dir, relPath) {
+  let at = dir;
+  for (const part of relPath.split('/')) {
+    if (!existsSync(at) || !statSync(at).isDirectory()) return false;
+    const match = readdirSync(at).find((e) => e.toLowerCase() === part.toLowerCase());
+    if (match === undefined) return false;
+    at = join(at, match);
+  }
+  return true;
+}
+
+/** GitHub reads a pull request template from any of these, so one anywhere means the project has one. */
+const PR_TEMPLATES = [
+  'pull_request_template.md',
+  'docs/pull_request_template.md',
+  '.github/pull_request_template.md',
+  '.github/PULL_REQUEST_TEMPLATE',
+  'docs/PULL_REQUEST_TEMPLATE',
+  'PULL_REQUEST_TEMPLATE',
+];
+
+/** `.gitignore` text with each scaffold rule the project lacks appended, with the comments above it. */
+function mergeGitignore(current, scaffold) {
+  const eol = current.includes('\r\n') ? '\r\n' : '\n';
+  const have = new Set(current.split(/\r?\n/).map((l) => l.trim()));
+  const add = [];
+  let comments = [];
+  for (const line of scaffold.split(/\r?\n/)) {
+    if (line.trim() === '') comments = [];
+    else if (line.trim().startsWith('#')) comments.push(line);
+    else {
+      if (!have.has(line.trim())) add.push(...comments, line);
+      comments = [];
+    }
+  }
+  if (add.length === 0) return current;
+  const before = current.replace(/(\r?\n)+$/, '');
+  return `${before}${before === '' ? '' : eol + eol}${add.join(eol)}${eol}`;
+}
+
+/**
+ * Files plugins offer a project from their `scaffold/` folders: each file the project lacks, and
+ * nothing it already has. `scaffold/.gitignore` is merged rule by rule into the project's instead.
+ * Returns `{ name, path, text }` like `planInstructions`.
+ */
+export function planScaffold(dir, pluginDirs) {
+  const files = [];
+  for (const pluginDir of pluginDirs) {
+    const root = pluginDir && join(pluginDir, 'scaffold');
+    if (!root || !existsSync(root)) continue;
+    for (const name of filesUnder(root).sort()) {
+      const text = readFileSync(join(root, name), 'utf8');
+      const path = join(dir, name);
+      if (name === '.gitignore') {
+        const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
+        const merged = mergeGitignore(current, text);
+        if (merged !== current) files.push({ name, path, text: merged });
+      } else if (name.toLowerCase() === '.github/pull_request_template.md') {
+        if (!PR_TEMPLATES.some((p) => hasPath(dir, p))) files.push({ name, path, text });
+      } else if (!hasPath(dir, name)) files.push({ name, path, text });
+    }
+  }
   return files;
 }
 

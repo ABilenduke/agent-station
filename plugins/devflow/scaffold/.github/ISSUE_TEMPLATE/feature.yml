@@ -1,0 +1,26 @@
+name: Feature
+description: Something new or changed, to be briefed, planned and built
+labels: ['type:feature', 'stage:brief']
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: What you want, in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and audience
+      description: Who needs this, and what they cannot do today.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What would show it works. Benefits nobody has measured yet are hypotheses.
+  - type: input
+    id: appetite
+    attributes:
+      label: Appetite
+      description: The most active time this is worth, such as 4h. Leave empty if unsure.

@@ -1,0 +1,28 @@
+name: Spike
+description: A question to answer with evidence before deciding what to build
+labels: ['type:spike', 'stage:brief']
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What needs answering.
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision it serves
+      description: What will be decided differently depending on the answer.
+    validations:
+      required: true
+  - type: textarea
+    id: known
+    attributes:
+      label: Already known
+      description: Links, code paths or notes that bear on it.
+  - type: input
+    id: timebox
+    attributes:
+      label: Timebox
+      description: The most active time to spend before deciding with what is known, such as 2h.
