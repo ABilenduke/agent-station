@@ -196,3 +196,6 @@ and add the note to Links.
 The issue closes when the PR carrying `Closes #N` merges into the default branch, or by hand when
 the work ends some other way. Before it is called done, `feature-review` checks the plan's
 Definition of Done, runs `worklog post issue-N`, writes the `retro` comment, and sets `stage:done`.
+The quick track has no plan; its Definition of Done is that every acceptance check passes and is in
+the journal, the repository's required checks pass, the PR carrying `Closes #N` is merged, and the
+time is posted with a short retro.

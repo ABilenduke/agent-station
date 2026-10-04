@@ -19,19 +19,22 @@ did.
 
 ## Establish the boundary
 
-1. Read the spec, plan and decisions sections, your `journal:*` comments and the `time` comment.
-   Removed requirements stay removed; use the plan's latest Revisions.
+1. Read what the work is held to, which depends on the track. On `standard` and `full`: the spec,
+   plan and decisions sections; removed requirements stay removed, so use the plan's latest
+   Revisions. On `quick`: the brief's Acceptance list and step S1. Then your `journal:*` comments
+   and the `time` comment.
 2. Review the PR's diff (`gh pr diff`) or the branch against its base, plus staged, unstaged and
    relevant untracked files, unless the user names another range. Read the resulting code and its
    callers, not only the diff: a missing implementation has no changed line.
 
 ## Trace every requirement
 
-For each in-scope `REQ`, find the implementation and the check that demonstrates its acceptance
-criterion. Read the assertions, not test names or green output; a test can encode the bug. Run
+For each in-scope requirement (each `REQ`, or on the quick track each acceptance check), find the
+implementation and the check that demonstrates its acceptance criterion. Read the assertions, not test names or green output; a test can encode the bug. Run
 proportionate, non-mutating checks and record the commands and results. Separate introduced
 failures, pre-existing failures and checks that could not run. Check journal statuses and skipped
-steps against what exists. Check the plan's quality requirements and rollback the same way.
+steps against what exists. When there is a plan, check its quality requirements and rollback the
+same way.
 
 ## Report
 
@@ -50,7 +53,8 @@ the user asked for no writes at all. When the user asks to record the review, wr
 
 Once the verdict is **No findings** and the user accepts the work, or after the PR merges:
 
-1. Tick the plan's Definition of Done only with evidence; name any item left open.
+1. Tick the Definition of Done only with evidence and name any item left open: the plan's, or on
+   the quick track the contract's (Closing).
 2. `worklog post issue-N`.
 3. `worklog issue comment N retro --file -`:
 
