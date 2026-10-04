@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { computeTimes } from './active.js';
 import { formatMinutes, parseEstimate } from './duration.js';
 import { classifyHook } from './hook.js';
@@ -9,14 +9,18 @@ import { loadBindings, saveBindings } from './state.js';
 import { summarize } from './summary.js';
 const USAGE = `Usage: worklog <command>
 
-  start <feature-dir> <step> [--estimate 1h30m] [--note text]   open a step and bind this session
-  join <feature-dir> <step> [--note text]                        bind another session to an open step
-  finish <feature-dir> <step> [--note text]                      close a step and render time.md
-  render <feature-dir>                                           regenerate time.md from time.jsonl
-  check <feature-dir>                                            validate time.jsonl and time.md
-  status                                                         list open steps and bound sessions
-  summary <dir>... [--json]                                      estimate calibration across features
-  hook [--harness claude-code|codex]                             record a hook event (used by hooks)
+  start <ledger> <step> [--estimate 1h30m] [--note text]   open a step and bind this session
+  join <ledger> <step> [--note text]                        bind another session to an open step
+  finish <ledger> <step> [--note text]                      close a step and render time.md
+  render <ledger>                                           regenerate time.md from time.jsonl
+  check <ledger>                                            validate time.jsonl and time.md
+  post <issue-N>                                            comment time.md on GitHub issue N (gh)
+  status                                                    list open steps and bound sessions
+  summary [<dir>...] [--json]                               estimate calibration (default .agent/worklog)
+  hook [--harness claude-code|codex]                        record a hook event (used by hooks)
+
+<ledger> is a folder, or issue-N for .agent/worklog/issue-N/ at the repository root, which is
+meant to stay out of git (add .agent/ to .gitignore).
 `;
 class UsageError extends Error {
 }
@@ -63,12 +67,32 @@ function stringFlag(flags, name) {
         throw new UsageError(`--${name} needs a value.`);
     return value;
 }
-function featureDir(raw) {
+const ISSUE_REF = /^issue-(\d+)$/;
+export const LEDGER_HOME = join('.agent', 'worklog');
+/** The nearest folder at or above `from` holding `.git`, or `from` itself outside a repository. */
+function repoRoot(from) {
+    for (let dir = from;; dir = dirname(dir)) {
+        if (existsSync(join(dir, '.git')))
+            return dir;
+        if (dirname(dir) === dir)
+            return from;
+    }
+}
+/** A ledger folder: `issue-N` under `.agent/worklog/` (made when `create`), else an existing folder. */
+function featureDir(raw, deps, create = false) {
     if (!raw)
-        throw new UsageError('Missing feature folder.');
-    const dir = resolve(raw);
+        throw new UsageError('Missing ledger folder.');
+    if (ISSUE_REF.test(raw)) {
+        const dir = join(repoRoot(deps.cwd), LEDGER_HOME, raw);
+        if (create)
+            mkdirSync(dir, { recursive: true });
+        else if (!existsSync(dir))
+            throw new UsageError(`No ledger for ${raw}: ${dir}`);
+        return dir;
+    }
+    const dir = resolve(deps.cwd, raw);
     if (!existsSync(dir) || !statSync(dir).isDirectory())
-        throw new UsageError(`Feature folder not found: ${raw}`);
+        throw new UsageError(`Ledger folder not found: ${raw}`);
     return dir;
 }
 function stepName(raw) {
@@ -118,7 +142,7 @@ function busyBinding(deps, agent, dir, step) {
 }
 function start(args, deps) {
     const { positional, flags } = parseArgs(args);
-    const dir = featureDir(positional[0]);
+    const dir = featureDir(positional[0], deps, true);
     const step = stepName(positional[1]);
     const estimate = stringFlag(flags, 'estimate');
     const note = stringFlag(flags, 'note');
@@ -147,7 +171,7 @@ function start(args, deps) {
 }
 function join_(args, deps) {
     const { positional, flags } = parseArgs(args);
-    const dir = featureDir(positional[0]);
+    const dir = featureDir(positional[0], deps);
     const step = stepName(positional[1]);
     const note = stringFlag(flags, 'note');
     const agent = detectAgent(deps.env);
@@ -172,7 +196,7 @@ function join_(args, deps) {
 }
 function finish(args, deps) {
     const { positional, flags } = parseArgs(args);
-    const dir = featureDir(positional[0]);
+    const dir = featureDir(positional[0], deps);
     const step = stepName(positional[1]);
     const note = stringFlag(flags, 'note');
     if (!openSteps(readLedger(ledgerPath(dir)).events).has(step)) {
@@ -216,7 +240,7 @@ async function hook(args, deps) {
     return 0;
 }
 function check(args, deps) {
-    const dir = featureDir(parseArgs(args).positional[0]);
+    const dir = featureDir(parseArgs(args).positional[0], deps);
     const path = ledgerPath(dir);
     if (!existsSync(path)) {
         deps.stderr(`No time.jsonl in ${dir}.\n`);
@@ -235,6 +259,22 @@ function check(args, deps) {
     deps.stdout(`${basename(dir)}: ${events.length} events, time.md current.\n`);
     return 0;
 }
+/** Comments the rendered time.md on the issue, so the history lives in the tracker and not in git. */
+function post(args, deps) {
+    const ref = parseArgs(args).positional[0];
+    const match = ref === undefined ? null : ISSUE_REF.exec(ref);
+    if (!match)
+        throw new UsageError('post needs an issue-N ref.');
+    const dir = featureDir(ref, deps);
+    const content = render(dir);
+    const result = deps.exec('gh', ['issue', 'comment', match[1] ?? '', '--body-file', join(dir, 'time.md')]);
+    if (result.status !== 0) {
+        deps.stderr(`gh issue comment failed: ${result.output.trim()}\n`);
+        return 1;
+    }
+    deps.stdout(`Posted time for ${ref} (${content.split('\n').length} lines) to issue ${match[1]}.\n`);
+    return 0;
+}
 function status(deps) {
     const bindings = loadBindings(deps.stateDir);
     if (bindings.length === 0) {
@@ -246,10 +286,10 @@ function status(deps) {
     }
     return 0;
 }
-function ledgerFolders(paths) {
+function ledgerFolders(paths, cwd) {
     const folders = [];
     for (const raw of paths) {
-        const dir = resolve(raw);
+        const dir = resolve(cwd, raw);
         if (existsSync(ledgerPath(dir)))
             folders.push(dir);
         else if (existsSync(dir) && statSync(dir).isDirectory()) {
@@ -263,7 +303,7 @@ function ledgerFolders(paths) {
 }
 function summary(args, deps) {
     const { positional, flags } = parseArgs(args);
-    const folders = ledgerFolders(positional.length > 0 ? positional : ['docs/features']);
+    const folders = ledgerFolders(positional.length > 0 ? positional : [join(repoRoot(deps.cwd), LEDGER_HOME)], deps.cwd);
     const result = summarize(folders.map((dir) => ({ name: basename(dir), events: readLedger(ledgerPath(dir)).events })));
     if (flags.has('json')) {
         deps.stdout(`${JSON.stringify(result, null, 2)}\n`);
@@ -293,13 +333,15 @@ export async function runCli(argv, deps) {
             case 'hook':
                 return await hook(args, deps);
             case 'render': {
-                const dir = featureDir(parseArgs(args).positional[0]);
+                const dir = featureDir(parseArgs(args).positional[0], deps);
                 render(dir);
                 deps.stdout(`Wrote ${join(dir, 'time.md')}.\n`);
                 return 0;
             }
             case 'check':
                 return check(args, deps);
+            case 'post':
+                return post(args, deps);
             case 'status':
                 return status(deps);
             case 'summary':

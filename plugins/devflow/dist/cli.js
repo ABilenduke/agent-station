@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
 import { runCli } from './cli-core.js';
 import { defaultStateDir } from './state.js';
 async function readStdin() {
@@ -13,6 +14,11 @@ runCli(process.argv.slice(2), {
     env: process.env,
     now: () => new Date(),
     stateDir: defaultStateDir(process.env, process.getuid?.() ?? 0),
+    cwd: process.cwd(),
+    exec: (command, args) => {
+        const result = spawnSync(command, args, { encoding: 'utf8' });
+        return { status: result.status ?? 1, output: `${result.stdout}${result.stderr}${result.error?.message ?? ''}` };
+    },
     stdin: readStdin,
     stdout: (s) => process.stdout.write(s),
     stderr: (s) => process.stderr.write(s),

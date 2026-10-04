@@ -16,6 +16,9 @@ docs/plans/2026-09-15-frontend-craft.execution.md
 # macOS system files
 .DS_Store
 
+# Agent working files (worklog ledgers); history lives in GitHub issues, not git.
+.agent/
+
 # devflow plugin build output that is not shipped.
 plugins/devflow/dist-test/
 plugins/devflow/.dist-check/
