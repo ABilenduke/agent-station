@@ -34,6 +34,7 @@ export class GitHub {
             labels: i.labels.map((l) => (typeof l === 'string' ? l : l.name)),
             updatedAt: i.updated_at,
             closed: i.state === 'closed',
+            completed: i.state === 'closed' && i.state_reason !== 'not_planned',
             comments: i.comments,
             pullRequest: i.pull_request !== undefined,
         }));

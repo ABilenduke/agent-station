@@ -374,9 +374,11 @@ function localHistory(deps) {
     const home = join(repoRoot(deps.cwd), LEDGER_HOME);
     return ledgerFolders([home], deps.cwd).flatMap((dir) => {
         const match = ISSUE_REF.exec(basename(dir));
-        return match
-            ? [{ issue: Number(match[1]), labels: [], steps: timeData(readLedger(ledgerPath(dir)).events).steps }]
-            : [];
+        if (!match)
+            return [];
+        // Completion comes from GitHub; a ledger alone may be work in progress.
+        const steps = timeData(readLedger(ledgerPath(dir)).events).steps;
+        return [{ issue: Number(match[1]), labels: [], completed: false, steps }];
     });
 }
 /** Time data from the repository's issues, cached under .agent/worklog, plus this machine's ledgers. */

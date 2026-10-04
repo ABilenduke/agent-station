@@ -28,13 +28,14 @@ export function collectHistory(gh: GitHub, cachePath: string, local: IssueRecord
     if (listed.pullRequest) continue;
     const cached = cache.get(listed.issue);
     if (cached && cached.closed && listed.closed && cached.updatedAt === listed.updatedAt) {
-      records.set(listed.issue, { ...cached, labels: listed.labels });
+      records.set(listed.issue, { ...cached, labels: listed.labels, completed: listed.completed });
       continue;
     }
     const data = listed.comments === 0 ? null : parseDataLine(gh.markedComment(listed.issue, 'time')?.body ?? '');
     records.set(listed.issue, {
       issue: listed.issue,
       labels: listed.labels,
+      completed: listed.completed,
       ...(data?.origin ? { origin: data.origin } : {}),
       steps: data?.steps ?? [],
       updatedAt: listed.updatedAt,
@@ -53,11 +54,18 @@ export function collectHistory(gh: GitHub, cachePath: string, local: IssueRecord
     merged.set(ledger.issue, {
       issue: ledger.issue,
       labels: known?.labels ?? [],
+      completed: known?.completed ?? false,
       ...(origin ? { origin } : {}),
       steps: [...steps.values()],
     });
   }
   return [...merged.values()]
     .filter((r) => r.steps.length > 0)
-    .map(({ issue, labels, origin, steps }) => ({ issue, labels, ...(origin ? { origin } : {}), steps }));
+    .map(({ issue, labels, completed, origin, steps }) => ({
+      issue,
+      labels,
+      completed,
+      ...(origin ? { origin } : {}),
+      steps,
+    }));
 }

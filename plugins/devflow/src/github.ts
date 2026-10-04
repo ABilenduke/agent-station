@@ -49,6 +49,8 @@ export class GitHub {
     labels: string[];
     updatedAt: string;
     closed: boolean;
+    /** Closed as done, not as "not planned". */
+    completed: boolean;
     comments: number;
     pullRequest: boolean;
   }> {
@@ -58,6 +60,7 @@ export class GitHub {
         labels: Array<{ name: string } | string>;
         updated_at: string;
         state: string;
+        state_reason?: string | null;
         comments: number;
         pull_request?: unknown;
       }>
@@ -67,6 +70,7 @@ export class GitHub {
       labels: i.labels.map((l) => (typeof l === 'string' ? l : l.name)),
       updatedAt: i.updated_at,
       closed: i.state === 'closed',
+      completed: i.state === 'closed' && i.state_reason !== 'not_planned',
       comments: i.comments,
       pullRequest: i.pull_request !== undefined,
     }));

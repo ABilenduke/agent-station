@@ -472,6 +472,14 @@ test('history gathers your time data from the repository’s issues and caches c
   const json = JSON.parse((await run(['history', '--json'])).out) as { issues: Array<{ issue: number }> };
   assert.deepEqual(json.issues.map((i) => i.issue).sort(), [1, 2, 3, 4, 5, 6]);
   assert.match((await run(['history', '--labels', 'type:feature,track:full'])).out, /track:full: median 1h active/);
+  // Abandoned and still-open issues are not comparable past work.
+  github.issue(30, '', { labels: ['type:feature', 'track:full'], state: 'closed', stateReason: 'not_planned' });
+  github.comment(
+    30,
+    'owner',
+    `<!-- devflow:comment time -->\n${dataLine({ v: 1, steps: [{ step: 'S1', estimateMin: 600, activeMin: 5, finished: '2026-09-09T10:00:00Z' }] })}`,
+  );
+  assert.match((await run(['history', '--labels', 'type:feature,track:full'])).out, /6 issues\)/);
   github.calls = [];
   await run(['history']);
   assert.equal(github.calls.filter((c) => c.args.some((a) => a.endsWith('/comments'))).length, 0);

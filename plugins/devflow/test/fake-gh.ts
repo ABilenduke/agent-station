@@ -11,7 +11,15 @@ export class FakeGitHub {
   viewer = 'owner';
   issues = new Map<
     number,
-    { body: string | null; comments: FakeComment[]; labels: string[]; state: string; updatedAt: string; pr: boolean }
+    {
+      body: string | null;
+      comments: FakeComment[];
+      labels: string[];
+      state: string;
+      stateReason: string;
+      updatedAt: string;
+      pr: boolean;
+    }
   >();
   calls: Array<{ command: string; args: string[]; input: string | undefined }> = [];
   /** When set, every call fails with this message on stderr. */
@@ -21,13 +29,20 @@ export class FakeGitHub {
   issue(
     number: number,
     body: string | null = '',
-    meta: { labels?: string[]; state?: 'open' | 'closed'; updatedAt?: string; pr?: boolean } = {},
+    meta: {
+      labels?: string[];
+      state?: 'open' | 'closed';
+      stateReason?: 'completed' | 'not_planned';
+      updatedAt?: string;
+      pr?: boolean;
+    } = {},
   ): void {
     this.issues.set(number, {
       body,
       comments: [],
       labels: meta.labels ?? [],
       state: meta.state ?? 'open',
+      stateReason: meta.stateReason ?? 'completed',
       updatedAt: meta.updatedAt ?? '2026-10-01T00:00:00Z',
       pr: meta.pr ?? false,
     });
@@ -59,6 +74,7 @@ export class FakeGitHub {
         number,
         labels: i.labels.map((name) => ({ name })),
         state: i.state,
+        state_reason: i.state === 'closed' ? i.stateReason : null,
         updated_at: i.updatedAt,
         comments: i.comments.length,
         ...(i.pr ? { pull_request: {} } : {}),

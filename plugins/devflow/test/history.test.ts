@@ -64,6 +64,7 @@ function issue(
   return {
     issue: number,
     labels,
+    completed: true,
     ...(origin ? { origin } : {}),
     steps: steps.map(([step, estimateMin, activeMin], i) => ({
       step,
@@ -202,4 +203,18 @@ test('referenceClass counts bug-fix time against the issue it traces to', () => 
     issue(10, ['bug'], [['fix', 30, 60]], 2, [3]),
   ];
   assert.equal(referenceClass(history, ['type:feature'])?.q3ActiveMin, 90);
+});
+
+test('only completed issues count as past issues; open work still lends its finished steps', () => {
+  const planned: Array<[string, number, number]> = [
+    ['S1', 60, 60],
+    ['S2', 60, 60],
+  ];
+  const done = [1, 2, 3].map((n) => issue(n, ['type:feature'], planned));
+  const open = { ...issue(4, ['type:feature'], [['S1', 60, 60]]), completed: false };
+  const history = [...done, open];
+  assert.equal(referenceClass(history, ['type:feature'])?.count, 3);
+  const result = forecast([{ step: 'S1', estimateMin: 60 }], history, { runs: 100, random: seededRandom(1) });
+  assert.equal(result.withAllowance?.issues, 3);
+  assert.equal(result.steps[0]?.samples, 7);
 });

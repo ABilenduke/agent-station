@@ -26,6 +26,8 @@ export interface TimeData {
 export interface IssueRecord {
   issue: number;
   labels: string[];
+  /** Closed as done (not as "not planned"); only completed issues count as comparable past work. */
+  completed: boolean;
   origin?: number[];
   steps: StepRecord[];
 }
@@ -177,7 +179,7 @@ function fixTimeFor(history: IssueRecord[], issue: number): number {
 /** For each past issue with planned work: unplanned QA, rework and traced fixes over planned time. */
 export function allowanceRatios(history: IssueRecord[]): number[] {
   return history
-    .filter((i) => !i.origin?.length)
+    .filter((i) => i.completed && !i.origin?.length)
     .flatMap((i) => {
       const planned = i.steps.filter((s) => s.estimateMin !== null).reduce((sum, s) => sum + (s.activeMin ?? 0), 0);
       if (planned <= 0) return [];
@@ -253,7 +255,7 @@ export interface ReferenceClass {
  */
 export function referenceClass(history: IssueRecord[], labels: string[]): ReferenceClass | null {
   const totals = history
-    .filter((i) => labels.every((l) => i.labels.includes(l)))
+    .filter((i) => i.completed && labels.every((l) => i.labels.includes(l)))
     .map((i) => i.steps.reduce((sum, s) => sum + (s.activeMin ?? 0), 0) + fixTimeFor(history, i.issue))
     .filter((total) => total > 0);
   if (totals.length < MIN_ISSUES) return null;
