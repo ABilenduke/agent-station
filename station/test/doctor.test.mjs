@@ -169,3 +169,22 @@ test('doctor finds secrets in Codex MCP args, bearer tokens, headers and quoted 
     `~/.codex/config.toml: MCP server "a" has QUOTED_TOKEN in plain text; ${move}`,
   ]);
 });
+
+test('doctor checks Copilot CLI when it is installed', () => {
+  const missing = healthy({ copilot: { marketplaces: [], plugins: [] } });
+  assert.deepEqual(problems(doctor(missing.catalog, missing.deps)), [
+    'copilot: agent-station marketplace not added; run station install',
+  ]);
+  const ok = healthy({ copilot: { marketplaces: ['agent-station'], plugins: ['devflow@agent-station'] } });
+  assert.deepEqual(problems(doctor(ok.catalog, ok.deps)), []);
+});
+
+test('doctor reports a skill Copilot CLI would load twice', () => {
+  const { home, deps, catalog } = healthy({
+    copilot: { marketplaces: ['agent-station'], plugins: ['devflow@agent-station'] },
+  });
+  writeTree(home, { '.copilot/skills/bugfix/SKILL.md': skill('bugfix') });
+  assert.deepEqual(problems(doctor(catalog, deps)), [
+    'copilot loads skill "bugfix" twice: ~/.copilot/skills/bugfix, agent-station devflow plugin',
+  ]);
+});

@@ -21,6 +21,10 @@ export function codexHome(deps) {
   return deps.env.CODEX_HOME || join(deps.home, '.codex');
 }
 
+export function copilotHome(deps) {
+  return deps.env.COPILOT_HOME || join(deps.home, '.copilot');
+}
+
 export function claudeHome(deps) {
   return deps.env.CLAUDE_CONFIG_DIR || join(deps.home, '.claude');
 }
@@ -66,7 +70,24 @@ export const TOOLS = {
     addMarketplace: ['plugin', 'marketplace', 'add'],
     install: ['plugin', 'add'],
   },
+  copilot: {
+    // Copilot CLI rejects marketplace.json files with plugin sources it does not support, as
+    // claude-plugins-official has, so it only takes plugins from this repository's marketplace.
+    ownMarketplaceOnly: true,
+    marketplaces: (deps) =>
+      JSON.parse(call(deps, 'copilot', ['plugin', 'marketplace', 'list', '--json'])).map((m) => m.name),
+    // A local marketplace lists all of its plugins as "live", with the ones not installed disabled,
+    // so only enabled plugins count as installed.
+    plugins: (deps) =>
+      JSON.parse(call(deps, 'copilot', ['plugin', 'list', '--json']))
+        .filter((p) => p.enabled)
+        .map((p) => ({ id: `${p.name}@${p.marketplace}`, enabled: true })),
+    addMarketplace: ['plugin', 'marketplace', 'add'],
+    install: ['plugin', 'install'],
+  },
 };
+
+export const TOOL_NAMES = Object.keys(TOOLS);
 
 export function available(deps, tool) {
   return deps.run(tool, ['--version']).code === 0;
@@ -93,6 +114,12 @@ function toolCommand(deps, lines, dryRun, tool, args, options = {}) {
 /** Adds missing marketplaces and installs missing plugins in one tool, recording each id it installs. */
 function provide(catalog, deps, lines, dryRun, tool, ids, added = []) {
   const t = TOOLS[tool];
+  if (t.ownMarketplaceOnly) {
+    const skipped = ids.filter((id) => marketplaceOf(id) !== catalog.name);
+    if (skipped.length > 0)
+      lines.push(`${tool}: skipped ${skipped.join(', ')} (it only installs from ${catalog.name})`);
+    ids = ids.filter((id) => marketplaceOf(id) === catalog.name);
+  }
   const markets = t.marketplaces(deps);
   for (const market of [catalog.name, ...ids.map(marketplaceOf)].filter((m, i, all) => all.indexOf(m) === i)) {
     if (markets.includes(market)) lines.push(`ok: ${tool} has marketplace ${market}`);
@@ -177,7 +204,7 @@ export function install(catalog, deps, { dryRun = false } = {}) {
 
 function installSteps(catalog, deps, dryRun, lines) {
   const ids = resolve(catalog, [catalog.install]);
-  for (const tool of ['claude', 'codex']) {
+  for (const tool of TOOL_NAMES) {
     if (!available(deps, tool)) lines.push(`${tool}: not installed, skipped`);
     else provide(catalog, deps, lines, dryRun, tool, ids);
   }
@@ -188,6 +215,9 @@ function installSteps(catalog, deps, dryRun, lines) {
 
   const agents = join(catalog.repo, 'global/AGENTS.md');
   link(deps, lines, dryRun, join(codexHome(deps), 'AGENTS.md'), agents);
+  if (available(deps, 'copilot')) {
+    link(deps, lines, dryRun, join(copilotHome(deps), 'copilot-instructions.md'), agents);
+  }
   if (existsSync(join(deps.home, '.gemini'))) link(deps, lines, dryRun, join(deps.home, '.gemini/GEMINI.md'), agents);
   write(deps, lines, dryRun, join(claudeHome(deps), 'CLAUDE.md'), `@${agents}\n`);
 
@@ -270,5 +300,7 @@ export function update(catalog, deps) {
         if (off.length > 0) setCodexUserPlugins(deps, lines, off, false);
       }
     }
+    // Copilot loads a local marketplace's plugins live, so only the catalog needs refreshing.
+    if (ready('copilot')) toolCommand(deps, lines, false, 'copilot', ['plugin', 'marketplace', 'update', catalog.name]);
   });
 }

@@ -54,15 +54,18 @@ export function sampleRepo(root = tempDir('station-repo-')) {
 }
 
 /**
- * An in-memory stand-in for the `claude` and `codex` CLIs, answering the subcommands station uses
+ * An in-memory stand-in for the `claude`, `codex` and (when given `copilot` state) `copilot` CLIs, answering the subcommands station uses
  * with the JSON shapes the real tools print. `codex plugin add` writes `enabled = true` to
  * `<codexHome>/config.toml` like the real tool, and `codex plugin list` reads it back.
  * `names` maps a marketplace source (path or owner/repo) to the marketplace name it declares.
  */
-export function fakeTools({ codexHome, names, missing = [], fail = [], claude = {}, codex = {} }) {
+export function fakeTools({ codexHome, names, missing = [], fail = [], claude = {}, codex = {}, copilot }) {
+  // Copilot CLI is absent unless a test gives it state, so tests of the other tools stay as they were.
+  if (copilot === undefined) missing = [...missing, 'copilot'];
   const state = {
     claude: { marketplaces: [...(claude.marketplaces ?? [])], plugins: [...(claude.plugins ?? [])] },
     codex: { marketplaces: [...(codex.marketplaces ?? [])] },
+    copilot: { marketplaces: [...(copilot?.marketplaces ?? [])], plugins: [...(copilot?.plugins ?? [])] },
   };
   const calls = [];
   const cwds = {};
@@ -120,6 +123,28 @@ export function fakeTools({ codexHome, names, missing = [], fail = [], claude = 
         );
         return ok();
       }
+    }
+    if (cmd === 'copilot') {
+      const s = state.copilot;
+      if (a === 'plugin marketplace list --json')
+        return ok(JSON.stringify(s.marketplaces.map((name) => ({ name, isDefault: false }))));
+      if (a.startsWith('plugin marketplace add ')) return (s.marketplaces.push(names[args[3]]), ok());
+      if (a.startsWith('plugin marketplace update ')) return ok();
+      // Like the real tool, a local marketplace lists every plugin it offers, enabled only once installed.
+      if (a === 'plugin list --json') {
+        const local = ['devflow', 'research'].map((name) => `${name}@agent-station`);
+        return ok(
+          JSON.stringify(
+            [...new Set([...local, ...s.plugins])].map((id) => ({
+              name: id.slice(0, id.lastIndexOf('@')),
+              marketplace: id.slice(id.lastIndexOf('@') + 1),
+              enabled: s.plugins.includes(id),
+              source: 'live',
+            })),
+          ),
+        );
+      }
+      if (a.startsWith('plugin install ')) return (s.plugins.push(args[2]), ok());
     }
     return { code: 2, stdout: '', stderr: `fake ${cmd}: unsupported "${a}"` };
   };

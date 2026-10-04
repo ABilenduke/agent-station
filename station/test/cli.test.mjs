@@ -58,6 +58,19 @@ test('init sets a project up for Claude Code and Codex from a profile', async ()
   assert.match(result.out, /\.claude\/settings\.json/);
 });
 
+test('init also enables the plugins for Copilot CLI in the repository settings', async () => {
+  const { project, run } = setup();
+  const result = await run('init', 'web', '--no-codex');
+  assert.equal(result.code, 0, result.err);
+  const settings = JSON.parse(readFileSync(join(project, '.github/copilot/settings.json'), 'utf8'));
+  assert.deepEqual(Object.keys(settings.enabledPlugins), ['devflow@agent-station', 'research@agent-station']);
+  assert.deepEqual(Object.keys(settings.extraKnownMarketplaces), ['agent-station']);
+  assert.deepEqual(settings.extraKnownMarketplaces['agent-station'], {
+    source: { source: 'github', repo: 'ABilenduke/agent-station' },
+  });
+  assert.match(result.out, /\.github\/copilot\/settings\.json/);
+});
+
 test('init twice changes nothing the second time', async () => {
   const { project, run } = setup();
   await run('init', 'web', '--no-codex');

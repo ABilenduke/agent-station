@@ -1,7 +1,7 @@
 # agent-station
 
 One place for the skills, agents, hooks, MCP servers and CLIs I use with coding agents. It is a plugin
-marketplace that **Claude Code and Codex both install from directly**, plus a small `station` CLI that
+marketplace that **Claude Code, Codex and GitHub Copilot CLI all install from directly**, plus a small `station` CLI that
 sets up a machine or a project in one command.
 
 Write a skill once, in the [Agent Skills](https://agentskills.io) format, and every tool gets the same
@@ -37,11 +37,11 @@ node station/station.mjs install
 
 `install` is safe to re-run. It:
 
-- adds this checkout as the `agent-station` marketplace in Claude Code and Codex, and installs the
-  `base` profile in both;
+- adds this checkout as the `agent-station` marketplace in Claude Code, Codex and Copilot CLI (each
+  one that is installed), and installs the `base` profile in each;
 - links `~/.local/bin/station` and `~/.local/bin/worklog`;
 - points every tool at one global instructions file, [`global/AGENTS.md`](global/AGENTS.md):
-  `~/.codex/AGENTS.md` and `~/.gemini/GEMINI.md` link to it and `~/.claude/CLAUDE.md` imports it;
+  `~/.codex/AGENTS.md`, `~/.copilot/copilot-instructions.md` and `~/.gemini/GEMINI.md` link to it and `~/.claude/CLAUDE.md` imports it;
 - creates `~/.config/agent-station/secrets.env` (mode 600) from
   [`secrets.env.example`](secrets.env.example). Fill in the keys there.
 
@@ -59,6 +59,7 @@ This writes, and you commit:
 
 - `.claude/settings.json`: enables the plugins and declares their marketplaces, so Claude Code
   offers to install them for anyone who opens the project;
+- `.github/copilot/settings.json`: the same, for Copilot CLI, which installs the plugins itself;
 - `.codex/config.toml`: switches the plugins on for this project once Codex trusts it;
 - `AGENTS.md` if it is missing, and a `CLAUDE.md` containing `@AGENTS.md`, so all tools share one
   set of project instructions. A project that already has its own `CLAUDE.md` is left alone.
@@ -103,9 +104,10 @@ committed file.
 
 ## How it fits together
 
-- **One catalog, two tools.** Codex reads Claude Code's `.claude-plugin/` format: plugin manifests,
+- **One catalog, three tools.** Codex and Copilot CLI read Claude Code's `.claude-plugin/` format: plugin manifests,
   `skills/`, `hooks/hooks.json` (with `CLAUDE_PLUGIN_ROOT` set) and `.mcp.json`. Agents in
-  `agents/` load in Claude Code only.
+  `agents/` load in Claude Code only. Copilot CLI loads a local marketplace's plugins live, so
+  `station update` only refreshes its catalog. It reads `AGENTS.md` and `CLAUDE.md` in projects.
 - **This machine vs others.** `install` registers the local checkout, so committed changes reach
   this machine with `station update` before they are pushed. Projects declare the GitHub source, so
   other machines and teammates install from GitHub. The two coexist under the same marketplace name.

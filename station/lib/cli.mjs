@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve as resolvePath } from 'node:path';
-import { loadCatalog, pluginContents, readJson, resolve } from './catalog.mjs';
+import { loadCatalog, marketplaceOf, pluginContents, readJson, resolve } from './catalog.mjs';
 import { doctor } from './doctor.mjs';
 import { ensureCodexPlugins, install, update } from './machine.mjs';
 import { mergeClaudeSettings, planInstructions, setCodexPlugins, writeAll } from './project.mjs';
@@ -10,10 +10,10 @@ import { validate } from './validate.mjs';
 const USAGE = `Usage: station <command>
 
   install [--dry-run]                       set up this machine: marketplaces and the install profile
-                                            in Claude Code and Codex, CLIs, global AGENTS.md, secrets file
-  init <profile|plugin>... [--dir <path>]   set up a project to use those plugins in both tools
+                                            in Claude Code, Codex and Copilot CLI, CLIs, global AGENTS.md, secrets file
+  init <profile|plugin>... [--dir <path>]   set up a project to use those plugins in Claude Code, Codex and Copilot CLI
        [--no-codex]                         (skip installing them in Codex for this user)
-  update                                    pick up changes to agent-station plugins in both tools
+  update                                    pick up changes to agent-station plugins in every tool
   list                                      profiles and what each plugin provides
   doctor                                    check this machine for drift, broken links and loose secrets
   validate                                  check this repository (run in CI)
@@ -73,9 +73,22 @@ function init(catalog, { positional, flags }, deps) {
   const codexNext = setCodexPlugins(codex, ids, true);
   const codexLines = flags['no-codex'] ? [] : ensureCodexPlugins(catalog, deps, ids);
 
+  // Copilot CLI's repository settings take the same enabledPlugins and extraKnownMarketplaces keys.
+  const copilotPath = join(dir, '.github/copilot/settings.json');
+  const copilot = existsSync(copilotPath) ? readJson(copilotPath) : {};
+  const copilotIds = ids.filter((id) => marketplaceOf(id) === catalog.name);
+  const copilotMerged = mergeClaudeSettings(copilot, copilotIds, catalog.marketplaces);
+
   const changes = [];
   if (!existsSync(settingsPath) || !isDeepStrictEqual(settings, merged)) {
     changes.push({ name: '.claude/settings.json', path: settingsPath, text: `${JSON.stringify(merged, null, 2)}\n` });
+  }
+  if (!existsSync(copilotPath) || !isDeepStrictEqual(copilot, copilotMerged)) {
+    changes.push({
+      name: '.github/copilot/settings.json',
+      path: copilotPath,
+      text: `${JSON.stringify(copilotMerged, null, 2)}\n`,
+    });
   }
   if (!existsSync(codexPath) || readFileSync(codexPath, 'utf8') !== codexNext) {
     changes.push({ name: '.codex/config.toml', path: codexPath, text: codexNext });
@@ -88,7 +101,7 @@ function init(catalog, { positional, flags }, deps) {
   print(deps, written.length > 0 ? written.map((f) => `wrote ${f}`) : ['already set up']);
   print(deps, codexLines);
   deps.stdout(
-    'Claude Code offers to install these plugins when the project is opened; Codex enables them here once the project is trusted.\n',
+    'Claude Code offers to install these plugins when the project is opened; Codex enables them here once the project is trusted; Copilot CLI installs them from .github/copilot/settings.json.\n',
   );
   return 0;
 }
