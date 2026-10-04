@@ -267,3 +267,14 @@ test('update refreshes the marketplace catalog in Copilot CLI', () => {
   update(catalog, deps);
   assert.ok(tools.calls.includes('copilot plugin marketplace update agent-station'), tools.calls.join('\n'));
 });
+
+test("Copilot commands run from the home directory so a project's .github/copilot/settings.json cannot leak in", () => {
+  const { home, tools, deps, catalog } = machine({ copilot: {} });
+  install(catalog, deps);
+  update(catalog, deps);
+  const copilot = Object.entries(tools.cwds).filter(([c]) => c.startsWith('copilot'));
+  assert.ok(copilot.length >= 4, 'install and update both ran Copilot commands');
+  assert.deepEqual([...new Set(copilot.map(([, cwd]) => cwd))], [home]);
+  assert.equal(tools.cwds['copilot plugin marketplace list --json'], home);
+  assert.equal(tools.cwds['copilot plugin list --json'], home);
+});

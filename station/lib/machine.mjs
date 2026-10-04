@@ -37,9 +37,13 @@ function stamp(deps) {
   return deps.now().toISOString().replace(/[-:]/g, '').slice(0, 15);
 }
 
-/** Runs a tool command, failing loudly on a non-zero exit. */
+/**
+ * Runs a tool command, failing loudly on a non-zero exit. Copilot CLI merges the working
+ * directory's .github/copilot/settings.json into its marketplace list, so its commands run from
+ * the home directory and only ever see this machine's setup.
+ */
 function call(deps, tool, args, options = {}) {
-  const result = deps.run(tool, args, options);
+  const result = deps.run(tool, args, tool === 'copilot' ? { cwd: deps.home, ...options } : options);
   if (result.code !== 0) throw new Error(`${tool} ${args.join(' ')} failed: ${result.stderr.trim()}`);
   return result.stdout;
 }
