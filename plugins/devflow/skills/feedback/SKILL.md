@@ -1,8 +1,8 @@
 ---
 name: feedback
 description: >-
-  Handles a pull request review cycle: reads the PR's review comments, records them in an append-only
-  feedback.md, applies each fix as its own commit, and replies on the PR with what changed. Use when
+  Handles a pull request review cycle: reads the PR's review comments, applies each fix as its own
+  commit, and records what changed on the PR itself, without adding files to the repository. Use when
   the user says "feedback", "PR feedback", "address review comments", "handle the review", or has
   review comments on a GitHub pull request to work through.
 ---
@@ -10,19 +10,18 @@ description: >-
 # Feedback
 
 Work through review comments on a GitHub pull request so that every comment ends up fixed, deferred
-or declined, with a written record of which and why. Works in any repository with the `gh` CLI
-authenticated; `gh` infers the repository from the current checkout.
+or declined, with a record of which and why kept on the pull request, not in the repository. Works in
+any repository with the `gh` CLI authenticated; `gh` infers the repository from the current checkout.
 
 ## Find the PR and its context
 
-1. Read the template: [templates/feedback-template.md](templates/feedback-template.md).
-2. Identify the PR. Use the number the user gave; otherwise look for an open PR for the current
+1. Identify the PR. Use the number the user gave; otherwise look for an open PR for the current
    branch:
    ```bash
    gh pr list --head "$(git branch --show-current)" --json number,title --jq '.[0]'
    ```
    If there is none, ask for the PR number.
-3. Read the PR and every kind of review comment:
+2. Read the PR and every kind of review comment:
    ```bash
    repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
    gh pr view {number} --json title,body,reviews,comments,reviewDecision
@@ -31,9 +30,12 @@ authenticated; `gh` infers the repository from the current checkout.
    gh api "repos/$repo/pulls/{number}/reviews" \
      --jq '.[] | {state: .state, body: .body, user: .user.login}'
    ```
-4. Find the planning documents the PR came from, if any: paths in the PR description, a feature
-   folder matching the branch (for example `docs/features/<date>-<slug>/`), or ask. Read them for
-   what was intended. A PR without planning documents is fine.
+3. Find the issue the PR came from, if any: `Closes #N` or a linked issue in the PR description.
+   Read it for what was intended:
+   ```bash
+   gh issue view {issue} --comments
+   ```
+   A PR without an issue is fine.
 
 ## 1. Gather and categorise
 
@@ -42,15 +44,12 @@ Categorise each comment as **Logic** (bug, wrong behaviour, missed edge case), *
 **Cosmetic** (naming, formatting, typos). Present the list and ask which items to defer or decline
 before changing anything.
 
-## 2. Record
+## 2. Track
 
-Create `feedback.md` from the template next to the planning documents, or at
-`docs/feedback/pr-{number}.md` when there are none. Record each item with its number, summary, type,
-files, what was raised (quoted or closely paraphrased) and resolution `Pending`. Commit it:
-`feedback: record review of #{number}`.
-
-The record is append-only: add resolutions and corrections below the original text, never rewrite
-what the reviewer raised.
+Keep the numbered list in the session's task list, with each item's summary, type, files and what was
+raised (quoted or closely paraphrased), starting as pending. Do not write it to a file in the
+repository. The record is the reply posted on the PR in step 4. Never reword what the reviewer raised
+when you quote it there.
 
 ## 3. Fix
 
@@ -59,7 +58,7 @@ Take items in order Logic, Architecture, Testing, Documentation, Cosmetic. For e
 1. Read the affected files and apply the fix.
 2. Run the relevant tests; do not batch fixes and test once at the end.
 3. Commit with `feedback: {short description}`.
-4. Append the resolution and commit hash to the item in `feedback.md`.
+4. Note the resolution and commit hash against the item.
 
 Deferred items get `Deferred: {reason}` and declined ones `Declined: {rationale agreed with the user}`;
 do not change code for them. Feedback that reveals a larger problem is a new piece of work, not a
@@ -78,12 +77,17 @@ bigger PR: defer it and say so.
    |---|------|---------|------------|
    | 1 | Logic | {summary} | Fixed in {hash} |
    | 2 | Architecture | {summary} | Deferred: {reason} |
+   | 3 | Cosmetic | {summary} | Declined: {rationale agreed with the user} |
 
    {N} items: {N} fixed, {N} deferred, {N} declined
    EOF
    ```
 
-3. Add the summary section to `feedback.md` and commit: `feedback: finalise review of #{number}`.
+3. For each inline review comment, reply in its thread with the resolution so the reviewer can resolve
+   it where they raised it:
+   ```bash
+   gh api "repos/$repo/pulls/{number}/comments/{comment_id}/replies" -f body="Fixed in {hash}"
+   ```
 
-Finish by telling the user how many items were fixed, deferred and declined, and listing deferred
-items that could become follow-up issues.
+Finish by telling the user how many items were fixed, deferred and declined. Offer to open each
+deferred item as an issue (`gh issue create`) and do it only when they agree.
